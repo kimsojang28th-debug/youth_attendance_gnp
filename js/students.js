@@ -6,7 +6,7 @@ import {
   $, escapeHtml, STUDENT_STATUS_LABEL, openModal, closeModal, todayISO, parseDelimitedLine, sortByName
 } from "./utils.js";
 import { isAdmin, currentUser } from "./auth.js";
-import { addHistoryRecord } from "./history.js";
+import { addHistoryRecord, deleteHistoryForStudent } from "./history.js";
 
 let _studentsCache = [];
 
@@ -137,8 +137,9 @@ function openStudentModal(student = null) {
 
   if (isEdit) {
     $("#deleteBtn").onclick = async () => {
-      if (!confirm(`${student.name} 학생 정보를 삭제할까요? (출석 기록은 유지됩니다)`)) return;
+      if (!confirm(`${student.name} 학생 정보를 삭제할까요?\n관련된 재적변동이력도 함께 삭제됩니다. (지난 출석 기록은 유지됩니다)`)) return;
       await deleteDoc(doc(db, "students", student.id));
+      await deleteHistoryForStudent(student.id);
       await loadStudents(true);
       closeModal();
       renderStudentsTable();
@@ -179,17 +180,22 @@ function openStudentModal(student = null) {
   };
 }
 
+const CSV_STATUS_MAP = {
+  "재적": "active", "새친구": "new", "휴학": "leave", "전출": "transferred_out", "제적": "removed"
+};
+
 function openBulkImportModal(visibleClasses) {
   openModal(`
     <h3>CSV 일괄 등록</h3>
     <p style="font-size:13px;color:#6b7280;">
-      한 줄에 학생 한 명씩, <code>이름,반이름,성별(남/여)</code> 형식으로 붙여넣어주세요.<br/>
-      구글시트에서 이름/반/성별 열을 복사해서 그대로 붙여넣어도 됩니다. (쉼표 또는 탭 구분 모두 지원)<br/>
-      예) <code>정현우,중1,남</code>
+      한 줄에 학생 한 명씩, <code>이름,반이름,성별(남/여),상태(선택)</code> 형식으로 붙여넣어주세요.<br/>
+      구글시트에서 열을 복사해서 그대로 붙여넣어도 됩니다. (쉼표 또는 탭 구분 모두 지원)<br/>
+      상태 열은 생략 가능하며, 생략 시 "재적"으로 등록됩니다. 새친구로 등록하려면 상태 칸에 "새친구"라고 적어주세요.<br/>
+      예) <code>정현우,중1,남,재적</code> / <code>나새롬,중1,여,새친구</code>
     </p>
     <label>반 이름 매핑 참고</label>
     <p style="font-size:12px;color:#868e96;">${visibleClasses.map(c => c.name).join(", ")}</p>
-    <textarea id="csvInput" rows="10" placeholder="정현우,중1,남&#10;안다은,중1,여"></textarea>
+    <textarea id="csvInput" rows="10" placeholder="정현우,중1,남,재적&#10;안다은,중1,여,재적&#10;나새롬,중1,여,새친구"></textarea>
     <div class="modal-actions">
       <button id="cancelBtn" class="btn">취소</button>
       <button id="importBtn" class="btn btn-primary">등록</button>
@@ -207,13 +213,19 @@ function openBulkImportModal(visibleClasses) {
 
     for (const line of lines) {
       const parts = parseDelimitedLine(line).map(p => p.trim());
-      const [name, className, genderRaw] = parts;
+      const [name, className, genderRaw, statusRaw] = parts;
       const classId = nameToClassId[className];
       if (!name || !classId) { fail++; continue; }
       const gender = (genderRaw === "여" || genderRaw === "F") ? "F" : "M";
-      await addDoc(collection(db, "students"), {
-        name, classId, gender, status: "active", joinDate: todayISO(), note: "",
+      const status = CSV_STATUS_MAP[statusRaw] || "active";
+      const joinDate = todayISO();
+      const ref = await addDoc(collection(db, "students"), {
+        name, classId, gender, status, joinDate, note: "",
         order: Date.now() + success, createdAt: serverTimestamp()
+      });
+      await addHistoryRecord({
+        studentId: ref.id, studentName: name, classId,
+        type: status === "new" ? "new" : "transfer_in", date: joinDate, note: "CSV 일괄등록"
       });
       success++;
     }

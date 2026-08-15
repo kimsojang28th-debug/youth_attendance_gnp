@@ -61,10 +61,10 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
-    // 재적 변동 이력 - 로그인한 누구나 조회/기록 가능, 삭제는 관리자만
+    // 재적 변동 이력 - 로그인한 누구나 조회/기록/수정/삭제 가능
+    // (학생 삭제 시 관련 이력도 함께 삭제되는데, 이 때 담당 교사도 삭제할 수 있어야 하므로 admin으로 제한하지 않음)
     match /rosterHistory/{historyId} {
-      allow read, create: if isSignedIn();
-      allow update, delete: if isAdmin();
+      allow read, create, update, delete: if isSignedIn();
     }
   }
 }
