@@ -1,5 +1,5 @@
 import { db, doc, getDoc, setDoc, serverTimestamp } from "./firebase-init.js";
-import { loadClasses, getClassesCache } from "./classes.js";
+import { loadClasses, getClassesCache, getClassById } from "./classes.js";
 import { loadStudents, getStudentsCache } from "./students.js";
 import { getAttendanceDoc } from "./attendance.js";
 import { $, escapeHtml, nearestSundayISO, sortByName, sundaySelectOptionsHtml, toast } from "./utils.js";
@@ -85,12 +85,11 @@ async function renderReport() {
   $("#reportBody").innerHTML = `
     <div class="panel">
       <h3>설교 및 예배 정보</h3>
-      <label>설교 본문</label>
-      <input id="m_sermonText" value="${escapeHtml(meta.sermonText || "")}" />
-      <label>설교 제목</label>
-      <input id="m_sermonTitle" value="${escapeHtml(meta.sermonTitle || "")}" />
-      <label>설교자</label>
-      <input id="m_preacher" value="${escapeHtml(meta.preacher || "")}" />
+      <div class="card-grid">
+        <div><label>설교 본문</label><input id="m_sermonText" value="${escapeHtml(meta.sermonText || "")}" /></div>
+        <div><label>설교 제목</label><input id="m_sermonTitle" value="${escapeHtml(meta.sermonTitle || "")}" /></div>
+        <div><label>설교자</label><input id="m_preacher" value="${escapeHtml(meta.preacher || "")}" /></div>
+      </div>
     </div>
 
     <div class="panel">
@@ -119,15 +118,27 @@ async function renderReport() {
 
     <div class="panel" style="margin-top:20px;">
       <h3>학생 출결 사항</h3>
+      <div class="report-summary-box">
+        <p class="report-summary-total">
+          전체 합계: 재적 ${totalRoster}명 / 출석 ${totalPresent}명 / 결석 ${totalRoster - totalPresent}명
+          (${totalRoster ? Math.round((totalPresent / totalRoster) * 1000) / 10 : 0}%)
+        </p>
+        <p class="report-summary-sub">
+          정회원 재적 ${totalRegularRoster}명 · 출석 ${totalRegularPresent}명 &nbsp;/&nbsp;
+          새친구 재적 ${totalNewRoster}명 · 출석 ${totalNewPresent}명
+        </p>
+      </div>
       <div class="report-grid">
-        ${details.map(d => `
+        ${details.map(d => {
+          const cls = getClassById(d.classId);
+          const teacherNames = (cls?.teacherNames || []).filter(Boolean);
+          return `
           <div class="report-class-card">
             <div class="report-class-card-header">
               <span>${escapeHtml(d.className)}</span>
             </div>
-            <div class="report-class-subtotals">
-              <div class="report-subtotal-line">정회원 재적 ${d.regularRoster}명 · 출석 ${d.regularPresent}명</div>
-              <div class="report-subtotal-line report-subtotal-new">새친구 재적 ${d.newRoster}명 · 출석 ${d.newPresent}명</div>
+            <div class="report-class-teacher-line">
+              ${teacherNames.length ? `담당: ${escapeHtml(teacherNames.join(", "))}` : `담당 선생님 미배정`}
             </div>
             <div class="report-class-card-body">
               ${d.students.length ? d.students.map(s => `
@@ -138,16 +149,9 @@ async function renderReport() {
               `).join("") : `<p class="list empty" style="padding:4px 0;font-size:12.5px;">학생 없음</p>`}
             </div>
           </div>
-        `).join("")}
+        `;
+        }).join("")}
       </div>
-      <p style="margin-top:16px;font-weight:700;">
-        전체 합계: 재적 ${totalRoster}명 / 출석 ${totalPresent}명 / 결석 ${totalRoster - totalPresent}명
-        (${totalRoster ? Math.round((totalPresent / totalRoster) * 1000) / 10 : 0}%)
-      </p>
-      <p style="margin-top:4px;font-size:12.5px;color:#6b7280;">
-        정회원 재적 ${totalRegularRoster}명 · 출석 ${totalRegularPresent}명 &nbsp;/&nbsp;
-        새친구 재적 ${totalNewRoster}명 · 출석 ${totalNewPresent}명
-      </p>
     </div>
   `;
 

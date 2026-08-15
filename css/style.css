@@ -67,16 +67,18 @@ body {
 /* ---------- 레이아웃 ---------- */
 .app { min-height: 100vh; }
 .topbar {
-  display: flex; align-items: center; gap: 20px;
   background: #fff; border-bottom: 1px solid var(--border);
-  padding: 10px 20px; position: sticky; top: 0; z-index: 20;
-  flex-wrap: wrap;
+  padding: 10px 20px 8px; position: sticky; top: 0; z-index: 20;
 }
-.topbar-title { font-weight: 700; font-size: 16px; white-space: nowrap; }
-.main-nav { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+.topbar-top {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 8px;
+}
+.topbar-title { font-weight: 800; font-size: 19px; letter-spacing: -0.2px; white-space: nowrap; color: var(--text); }
+.main-nav { display: flex; gap: 4px; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 8px; }
 .nav-btn {
   border: none; background: transparent; padding: 8px 12px; border-radius: 8px;
-  cursor: pointer; font-size: 13.5px; color: var(--text-muted);
+  cursor: pointer; font-size: 13.5px; color: var(--text-muted); white-space: nowrap;
 }
 .nav-btn:hover { background: #eef0fb; color: var(--text); }
 .nav-btn.active { background: var(--primary); color: #fff; }
@@ -84,6 +86,14 @@ body {
 
 .content { max-width: 1180px; margin: 0 auto; padding: 24px 20px 60px; }
 .view h2 { margin: 0 0 16px; font-size: 20px; }
+
+@media (max-width: 480px) {
+  .topbar { padding: 8px 12px 6px; }
+  .topbar-title { font-size: 16.5px; }
+  .topbar-user { font-size: 12px; gap: 6px; }
+  .nav-btn { padding: 7px 9px; font-size: 12.5px; }
+  .content { padding: 16px 12px 48px; }
+}
 
 .toolbar {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -112,8 +122,12 @@ body {
 
 /* ---------- 카드/패널 ---------- */
 .card-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 14px; margin-bottom: 20px;
+}
+.card-grid label { display: block; font-size: 13px; color: var(--text-muted); margin: 0 0 4px; }
+.card-grid input {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13.5px;
 }
 .stat-card {
   background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
@@ -180,6 +194,14 @@ tr:hover td { background: #f8f9fd; }
 }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 
+/* ---------- 주간보고서: 학생 출결 요약 ---------- */
+.report-summary-box {
+  background: #eef1fd; border: 1px solid #c7d0f7; border-radius: 8px;
+  padding: 12px 16px; margin-bottom: 16px;
+}
+.report-summary-total { margin: 0; font-size: 15px; font-weight: 700; color: var(--text); }
+.report-summary-sub { margin: 6px 0 0; font-size: 12.5px; color: var(--text-muted); }
+
 /* ---------- 주간보고서: 반별 출결 카드 ---------- */
 .report-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
@@ -193,10 +215,10 @@ tr:hover td { background: #f8f9fd; }
   display: flex; justify-content: space-between; align-items: center;
   background: #f3f4fa; padding: 8px 12px; font-weight: 700; font-size: 13.5px;
 }
-.report-class-tally { color: var(--primary); font-size: 12.5px; }
-.report-class-subtotals { padding: 6px 12px 2px; border-bottom: 1px solid #f1f2f6; }
-.report-subtotal-line { font-size: 12px; color: var(--text); font-weight: 600; }
-.report-subtotal-line.report-subtotal-new { color: #1971c2; }
+.report-class-teacher-line {
+  padding: 5px 12px; border-bottom: 1px solid #f1f2f6;
+  font-size: 12px; color: var(--text-muted);
+}
 .report-class-card-body { padding: 6px 12px; max-height: 260px; overflow-y: auto; }
 .report-student-row {
   display: flex; justify-content: space-between; align-items: center;

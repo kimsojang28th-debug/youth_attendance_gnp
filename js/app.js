@@ -1,5 +1,5 @@
 import { initAuth, isAdmin } from "./auth.js";
-import { seedDefaultClassesIfEmpty } from "./classes.js";
+import { seedDefaultClassesIfEmpty, initClassesView } from "./classes.js";
 import { $, $all } from "./utils.js";
 import { initDashboardView } from "./dashboard.js";
 import { initAttendanceView } from "./attendance.js";
@@ -14,6 +14,7 @@ const viewInitializers = {
   dashboard: initDashboardView,
   attendance: initAttendanceView,
   students: initStudentsView,
+  classes: initClassesView,
   report: initReportView,
   annual: initAnnualView,
   stats: initStatsView,

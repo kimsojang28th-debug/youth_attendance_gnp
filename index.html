@@ -46,21 +46,24 @@
 <!-- ===== 메인 앱 ===== -->
 <div id="app" class="app hidden">
   <header class="topbar">
-    <div class="topbar-title">🙌 청소년부 재적관리</div>
+    <div class="topbar-top">
+      <div class="topbar-title">🙌 청소년부 재적관리</div>
+      <div class="topbar-user">
+        <span id="userLabel"></span>
+        <button id="logoutBtn" class="btn btn-ghost">로그아웃</button>
+      </div>
+    </div>
     <nav id="mainNav" class="main-nav">
       <button data-view="dashboard" class="nav-btn active">대시보드</button>
       <button data-view="attendance" class="nav-btn">출석체크</button>
       <button data-view="students" class="nav-btn">재적부</button>
+      <button data-view="classes" class="nav-btn">반 관리</button>
       <button data-view="report" class="nav-btn">주간보고서</button>
       <button data-view="annual" class="nav-btn">연간출석부</button>
       <button data-view="stats" class="nav-btn">통계</button>
       <button data-view="history" class="nav-btn">재적변동이력</button>
       <button data-view="import" class="nav-btn">출석 가져오기</button>
     </nav>
-    <div class="topbar-user">
-      <span id="userLabel"></span>
-      <button id="logoutBtn" class="btn btn-ghost">로그아웃</button>
-    </div>
   </header>
 
   <main class="content">
@@ -113,6 +116,9 @@
       </div>
       <div id="studentsTableWrap"></div>
     </section>
+
+    <!-- 반 관리 -->
+    <section id="view-classes" class="view hidden"></section>
 
     <!-- 주간보고서 -->
     <section id="view-report" class="view hidden">
