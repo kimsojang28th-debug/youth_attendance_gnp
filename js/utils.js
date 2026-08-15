@@ -81,17 +81,19 @@ export function sortByName(list) {
   return [...list].sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
 }
 
-// 주일(일요일)만 선택 가능한 <select> 옵션 HTML 생성.
-// 지정한 날짜가 속한 연도의 전후 1년씩, 총 3개 연도의 주일을 <optgroup>으로 묶어서 제공합니다.
-export function sundaySelectOptionsHtml(selectedDate) {
-  const centerYear = selectedDate ? Number(selectedDate.slice(0, 4)) : new Date().getFullYear();
-  const years = [centerYear - 1, centerYear, centerYear + 1];
-  return years.map(y => {
-    const opts = getSundaysOfYear(y).map(d =>
-      `<option value="${d}" ${d === selectedDate ? "selected" : ""}>${d} (일)</option>`
-    ).join("");
-    return `<optgroup label="${y}년">${opts}</optgroup>`;
-  }).join("");
+// 연도 선택 <select> 옵션 HTML 생성. 기준연도의 전후 1년씩, 총 3개 연도를 제공합니다.
+// (예: 올해가 2026년이면 2025/2026/2027년이 나오고, 기본값은 올해가 선택됩니다.)
+export function yearSelectOptionsHtml(selectedYear) {
+  const years = [selectedYear - 1, selectedYear, selectedYear + 1];
+  return years.map(y => `<option value="${y}" ${y === selectedYear ? "selected" : ""}>${y}년</option>`).join("");
+}
+
+// 주일(일요일)만 선택 가능한 <select> 옵션 HTML 생성 (지정한 한 해의 주일만).
+// 연도를 먼저 고르고 그 연도의 주일만 보이도록 할 때 사용합니다.
+export function sundayOptionsHtmlForYear(year, selectedDate) {
+  return getSundaysOfYear(year).map(d =>
+    `<option value="${d}" ${d === selectedDate ? "selected" : ""}>${d} (일)</option>`
+  ).join("");
 }
 
 // 간단한 토스트 메시지

@@ -1,7 +1,10 @@
 import { db, doc, getDoc, setDoc, serverTimestamp } from "./firebase-init.js";
 import { loadClasses, getClassesCache } from "./classes.js";
 import { loadStudents, getStudentsCache } from "./students.js";
-import { $, escapeHtml, nearestSundayISO, sortByName, sundaySelectOptionsHtml, toast } from "./utils.js";
+import {
+  $, escapeHtml, nearestSundayISO, sortByName, toast,
+  yearSelectOptionsHtml, sundayOptionsHtmlForYear, getSundaysOfYear
+} from "./utils.js";
 import { isAdmin, currentUser } from "./auth.js";
 
 export function attendanceDocId(classId, date) {
@@ -28,8 +31,19 @@ export async function initAttendanceView() {
   const select = $("#attendanceClassSelect");
   select.innerHTML = visible.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
 
+  // 연도를 먼저 고르고 그 연도의 주일만 보이도록 함 (기본값: 올해)
+  const thisYear = new Date().getFullYear();
+  const yearSelect = $("#attendanceYearSelect");
+  yearSelect.innerHTML = yearSelectOptionsHtml(thisYear);
+
   const dateSelect = $("#attendanceDate");
-  dateSelect.innerHTML = sundaySelectOptionsHtml(dateSelect.value || nearestSundayISO());
+  dateSelect.innerHTML = sundayOptionsHtmlForYear(thisYear, nearestSundayISO());
+
+  yearSelect.onchange = () => {
+    const year = Number(yearSelect.value);
+    const defaultDate = year === new Date().getFullYear() ? nearestSundayISO() : getSundaysOfYear(year)[0];
+    dateSelect.innerHTML = sundayOptionsHtmlForYear(year, defaultDate);
+  };
 
   $("#loadAttendanceBtn").onclick = renderAttendanceTable;
   $("#saveAttendanceBtn").onclick = handleSaveAttendance;

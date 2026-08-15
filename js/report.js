@@ -2,14 +2,30 @@ import { db, doc, getDoc, setDoc, serverTimestamp } from "./firebase-init.js";
 import { loadClasses, getClassesCache, getClassById } from "./classes.js";
 import { loadStudents, getStudentsCache } from "./students.js";
 import { getAttendanceDoc } from "./attendance.js";
-import { $, escapeHtml, nearestSundayISO, sortByName, sundaySelectOptionsHtml, toast } from "./utils.js";
+import {
+  $, escapeHtml, nearestSundayISO, sortByName, toast,
+  yearSelectOptionsHtml, sundayOptionsHtmlForYear, getSundaysOfYear
+} from "./utils.js";
 import { currentUser } from "./auth.js";
 
 export async function initReportView() {
   await loadClasses();
   await loadStudents();
+
+  // 연도를 먼저 고르고 그 연도의 주일만 보이도록 함 (기본값: 올해)
+  const thisYear = new Date().getFullYear();
+  const yearSelect = $("#reportYearSelect");
+  yearSelect.innerHTML = yearSelectOptionsHtml(thisYear);
+
   const dateSelect = $("#reportDate");
-  dateSelect.innerHTML = sundaySelectOptionsHtml(dateSelect.value || nearestSundayISO());
+  dateSelect.innerHTML = sundayOptionsHtmlForYear(thisYear, nearestSundayISO());
+
+  yearSelect.onchange = () => {
+    const year = Number(yearSelect.value);
+    const defaultDate = year === new Date().getFullYear() ? nearestSundayISO() : getSundaysOfYear(year)[0];
+    dateSelect.innerHTML = sundayOptionsHtmlForYear(year, defaultDate);
+  };
+
   $("#loadReportBtn").onclick = renderReport;
   await renderReport();
 }
