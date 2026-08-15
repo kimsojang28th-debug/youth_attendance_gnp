@@ -2,14 +2,14 @@ import { db, doc, getDoc, setDoc, serverTimestamp } from "./firebase-init.js";
 import { loadClasses, getClassesCache } from "./classes.js";
 import { loadStudents, getStudentsCache } from "./students.js";
 import { getAttendanceDoc } from "./attendance.js";
-import { $, escapeHtml, nearestSundayISO, toast } from "./utils.js";
+import { $, escapeHtml, nearestSundayISO, sortByName, sundaySelectOptionsHtml, toast } from "./utils.js";
 import { currentUser } from "./auth.js";
 
 export async function initReportView() {
   await loadClasses();
   await loadStudents();
-  const dateInput = $("#reportDate");
-  if (!dateInput.value) dateInput.value = nearestSundayISO();
+  const dateSelect = $("#reportDate");
+  dateSelect.innerHTML = sundaySelectOptionsHtml(dateSelect.value || nearestSundayISO());
   $("#loadReportBtn").onclick = renderReport;
   await renderReport();
 }
@@ -19,30 +19,39 @@ async function getWeeklyMeta(date) {
   return snap.exists() ? snap.data() : {};
 }
 
-export async function buildAttendanceSummary(date) {
+// 반별 학생 명단(가나다순) + 그 주 출결(O/X)을 함께 담아 반환
+export async function buildAttendanceDetail(date) {
   const classes = getClassesCache();
   const students = getStudentsCache();
-  const rows = [];
+  const details = [];
   let totalRoster = 0, totalPresent = 0;
 
   for (const c of classes) {
-    const classStudents = students.filter(s => s.classId === c.id && (s.status === "active" || s.status === "new"));
+    const classStudents = sortByName(
+      students.filter(s => s.classId === c.id && (s.status === "active" || s.status === "new"))
+    );
     const attDoc = await getAttendanceDoc(c.id, date);
     const records = attDoc?.records || {};
-    const present = classStudents.filter(s => records[s.id] === "O").length;
-    const roster = classStudents.length;
+    const studentRows = classStudents.map(s => ({
+      id: s.id,
+      name: s.name,
+      isNew: s.status === "new",
+      val: records[s.id] === "O" ? "O" : "X"
+    }));
+    const present = studentRows.filter(s => s.val === "O").length;
+    const roster = studentRows.length;
     totalRoster += roster;
     totalPresent += present;
-    rows.push({ className: c.name, roster, present });
+    details.push({ classId: c.id, className: c.name, roster, present, students: studentRows });
   }
-  return { rows, totalRoster, totalPresent };
+  return { details, totalRoster, totalPresent };
 }
 
 async function renderReport() {
   const date = $("#reportDate").value;
   if (!date) return;
   const meta = await getWeeklyMeta(date);
-  const { rows, totalRoster, totalPresent } = await buildAttendanceSummary(date);
+  const { details, totalRoster, totalPresent } = await buildAttendanceDetail(date);
   const offering = meta.offering || {};
   const offeringTotal = ["weekly", "tithe", "thanks", "other"]
     .reduce((sum, k) => sum + (Number(offering[k]) || 0), 0);
@@ -83,26 +92,29 @@ async function renderReport() {
     <p id="reportSaveMsg" class="save-msg"></p>
 
     <div class="panel" style="margin-top:20px;">
-      <h3>학생 출결 사항 (자동 집계)</h3>
-      <div class="table-scroll">
-      <table>
-        <thead><tr><th>반</th><th>재적</th><th>출석</th><th>출석률</th></tr></thead>
-        <tbody>
-          ${rows.map(r => `
-            <tr>
-              <td>${escapeHtml(r.className)}</td>
-              <td>${r.roster}</td>
-              <td>${r.present}</td>
-              <td>${r.roster ? Math.round((r.present / r.roster) * 1000) / 10 : 0}%</td>
-            </tr>
-          `).join("")}
-          <tr style="font-weight:700;">
-            <td>합계</td><td>${totalRoster}</td><td>${totalPresent}</td>
-            <td>${totalRoster ? Math.round((totalPresent / totalRoster) * 1000) / 10 : 0}%</td>
-          </tr>
-        </tbody>
-      </table>
+      <h3>학생 출결 사항</h3>
+      <div class="report-grid">
+        ${details.map(d => `
+          <div class="report-class-card">
+            <div class="report-class-card-header">
+              <span>${escapeHtml(d.className)}</span>
+              <span class="report-class-tally">${d.present}/${d.roster}</span>
+            </div>
+            <div class="report-class-card-body">
+              ${d.students.length ? d.students.map(s => `
+                <div class="report-student-row">
+                  <span>${escapeHtml(s.name)}${s.isNew ? ' <span class="badge badge-new" style="padding:1px 6px;font-size:10px;">새</span>' : ""}</span>
+                  <span class="badge badge-${s.val === "O" ? "o" : "x"}">${s.val}</span>
+                </div>
+              `).join("") : `<p class="list empty" style="padding:4px 0;font-size:12.5px;">학생 없음</p>`}
+            </div>
+          </div>
+        `).join("")}
       </div>
+      <p style="margin-top:16px;font-weight:700;">
+        전체 합계: 재적 ${totalRoster}명 / 출석 ${totalPresent}명 / 결석 ${totalRoster - totalPresent}명
+        (${totalRoster ? Math.round((totalPresent / totalRoster) * 1000) / 10 : 0}%)
+      </p>
     </div>
   `;
 

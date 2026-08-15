@@ -1,7 +1,7 @@
 import { loadClasses, getClassesCache } from "./classes.js";
 import { loadStudents, getStudentsCache } from "./students.js";
 import { computeLongTermAbsentees, ALERT_THRESHOLD } from "./absentee.js";
-import { buildAttendanceSummary } from "./report.js";
+import { buildAttendanceDetail } from "./report.js";
 import { $, escapeHtml, nearestSundayISO } from "./utils.js";
 import { isAdmin, currentUser } from "./auth.js";
 
@@ -13,8 +13,8 @@ export async function initDashboardView() {
   const students = getStudentsCache().filter(s => visibleIds.includes(s.classId));
 
   const date = nearestSundayISO();
-  const { rows, totalRoster, totalPresent } = await buildAttendanceSummary(date);
-  const visibleRows = rows.filter(r => visible.some(c => c.name === r.className));
+  const { details } = await buildAttendanceDetail(date);
+  const visibleRows = details.filter(d => visibleIds.includes(d.classId));
   const rowsTotal = visibleRows.reduce((acc, r) => ({ roster: acc.roster + r.roster, present: acc.present + r.present }), { roster: 0, present: 0 });
 
   const activeCount = students.filter(s => s.status === "active").length;

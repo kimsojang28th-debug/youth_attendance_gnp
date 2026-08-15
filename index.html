@@ -70,12 +70,13 @@
       <h2>주일 출석체크</h2>
       <div class="toolbar">
         <label>주일 날짜</label>
-        <input type="date" id="attendanceDate" />
+        <select id="attendanceDate" class="sunday-select"></select>
         <label>반 선택</label>
         <select id="attendanceClassSelect"></select>
         <button id="loadAttendanceBtn" class="btn">불러오기</button>
       </div>
       <div id="attendanceTableWrap"></div>
+      <p id="attendanceSummaryLine" class="attendance-summary-line"></p>
       <button id="saveAttendanceBtn" class="btn btn-primary">출석 저장</button>
       <p id="attendanceSaveMsg" class="save-msg"></p>
     </section>
@@ -104,7 +105,7 @@
       <h2>주간보고서</h2>
       <div class="toolbar">
         <label>주일 날짜</label>
-        <input type="date" id="reportDate" />
+        <select id="reportDate" class="sunday-select"></select>
         <button id="loadReportBtn" class="btn">불러오기</button>
       </div>
       <div id="reportBody"></div>

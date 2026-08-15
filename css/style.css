@@ -95,6 +95,21 @@ body {
   padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13.5px;
 }
 
+/* 주일(일요일)만 고를 수 있는 날짜 선택 - 굵은 글씨로 강조 */
+.sunday-select {
+  font-weight: 700;
+  color: var(--primary);
+  background: #eef1fd;
+  border: 1px solid #c7d0f7;
+}
+
+.attendance-summary-line {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 10px 0;
+  color: var(--text);
+}
+
 /* ---------- 카드/패널 ---------- */
 .card-grid {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -162,3 +177,24 @@ tr:hover td { background: #f8f9fd; }
   width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13.5px;
 }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+/* ---------- 주간보고서: 반별 출결 카드 ---------- */
+.report-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 12px;
+}
+.report-class-card {
+  border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  background: #fff;
+}
+.report-class-card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  background: #f3f4fa; padding: 8px 12px; font-weight: 700; font-size: 13.5px;
+}
+.report-class-tally { color: var(--primary); font-size: 12.5px; }
+.report-class-card-body { padding: 6px 12px; max-height: 260px; overflow-y: auto; }
+.report-student-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 5px 0; border-bottom: 1px solid #f1f2f6; font-size: 13px;
+}
+.report-student-row:last-child { border-bottom: none; }

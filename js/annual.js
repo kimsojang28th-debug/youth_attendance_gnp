@@ -1,7 +1,7 @@
 import { db, collection, getDocs, query, where } from "./firebase-init.js";
 import { loadClasses, getClassesCache } from "./classes.js";
 import { loadStudents, getStudentsCache } from "./students.js";
-import { $, escapeHtml, getSundaysOfYear, fmtMonthDay } from "./utils.js";
+import { $, escapeHtml, getSundaysOfYear, fmtMonthDay, sortByName, friendlyFirestoreError } from "./utils.js";
 import { isAdmin, currentUser } from "./auth.js";
 
 export async function initAnnualView() {
@@ -32,7 +32,7 @@ async function renderAnnualTable() {
   wrap.innerHTML = `<p style="padding:16px;color:#868e96;">불러오는 중...</p>`;
 
   const sundays = getSundaysOfYear(year);
-  const students = getStudentsCache().filter(s => s.classId === classId && s.status !== "removed");
+  const students = sortByName(getStudentsCache().filter(s => s.classId === classId && s.status !== "removed"));
 
   const q = query(
     collection(db, "attendance"),
@@ -40,7 +40,14 @@ async function renderAnnualTable() {
     where("date", ">=", `${year}-01-01`),
     where("date", "<=", `${year}-12-31`)
   );
-  const snap = await getDocs(q);
+  let snap;
+  try {
+    snap = await getDocs(q);
+  } catch (err) {
+    console.error("연간출석부 조회 실패", err);
+    wrap.innerHTML = `<p class="list empty" style="padding:16px;line-height:1.6;color:#e03131;">${friendlyFirestoreError(err)}</p>`;
+    return;
+  }
   const byDate = {};
   snap.docs.forEach(d => { byDate[d.data().date] = d.data().records || {}; });
 

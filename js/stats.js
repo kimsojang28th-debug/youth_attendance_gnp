@@ -1,7 +1,7 @@
 import { db, collection, getDocs, query, where } from "./firebase-init.js";
 import { loadClasses, getClassesCache } from "./classes.js";
 import { loadStudents, getStudentsCache } from "./students.js";
-import { getSundaysOfYear, fmtMonthDay } from "./utils.js";
+import { getSundaysOfYear, fmtMonthDay, friendlyFirestoreError } from "./utils.js";
 
 // dataviz 스킬의 검증된 팔레트(blue, sequential) 사용 — 단일 시리즈 차트이므로
 // 카테고리컬 다색 대신 하나의 색으로 일관되게 표현합니다.
@@ -56,7 +56,19 @@ export async function initStatsView() {
   const sundays = getSundaysOfYear(year);
 
   // 전체 출석 데이터 한 번에 로드 (해당 연도)
-  const snap = await getDocs(query(collection(db, "attendance"), where("date", ">=", `${year}-01-01`), where("date", "<=", `${year}-12-31`)));
+  let snap;
+  try {
+    snap = await getDocs(query(collection(db, "attendance"), where("date", ">=", `${year}-01-01`), where("date", "<=", `${year}-12-31`)));
+  } catch (err) {
+    console.error("통계 데이터 조회 실패", err);
+    document.querySelectorAll("#view-stats canvas").forEach(c => {
+      const msg = document.createElement("p");
+      msg.style.cssText = "color:#e03131;font-size:13px;line-height:1.6;";
+      msg.innerHTML = friendlyFirestoreError(err);
+      c.replaceWith(msg);
+    });
+    return;
+  }
   const attDocs = snap.docs.map(d => d.data());
 
   renderByClassChart(classes, students, attDocs);

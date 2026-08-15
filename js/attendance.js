@@ -1,7 +1,7 @@
 import { db, doc, getDoc, setDoc, serverTimestamp } from "./firebase-init.js";
 import { loadClasses, getClassesCache } from "./classes.js";
 import { loadStudents, getStudentsCache } from "./students.js";
-import { $, escapeHtml, nearestSundayISO, toast } from "./utils.js";
+import { $, escapeHtml, nearestSundayISO, sortByName, sundaySelectOptionsHtml, toast } from "./utils.js";
 import { isAdmin, currentUser } from "./auth.js";
 
 export function attendanceDocId(classId, date) {
@@ -20,6 +20,7 @@ export async function saveAttendanceDoc(classId, date, records) {
 }
 
 let _currentRecords = {};
+let _currentStudentCount = 0;
 
 export async function initAttendanceView() {
   const classes = await loadClasses();
@@ -27,8 +28,8 @@ export async function initAttendanceView() {
   const select = $("#attendanceClassSelect");
   select.innerHTML = visible.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
 
-  const dateInput = $("#attendanceDate");
-  if (!dateInput.value) dateInput.value = nearestSundayISO();
+  const dateSelect = $("#attendanceDate");
+  dateSelect.innerHTML = sundaySelectOptionsHtml(dateSelect.value || nearestSundayISO());
 
   $("#loadAttendanceBtn").onclick = renderAttendanceTable;
   $("#saveAttendanceBtn").onclick = handleSaveAttendance;
@@ -42,13 +43,17 @@ async function renderAttendanceTable() {
   const date = $("#attendanceDate").value;
   if (!classId || !date) return;
 
-  const students = getStudentsCache().filter(s => s.classId === classId && s.status !== "removed" && s.status !== "transferred_out");
+  const students = sortByName(
+    getStudentsCache().filter(s => s.classId === classId && s.status !== "removed" && s.status !== "transferred_out")
+  );
   const existing = await getAttendanceDoc(classId, date);
   _currentRecords = existing?.records ? { ...existing.records } : {};
+  _currentStudentCount = students.length;
 
   const wrap = $("#attendanceTableWrap");
   if (!students.length) {
     wrap.innerHTML = `<div class="panel"><p class="list empty">이 반에 등록된 재적 학생이 없습니다. 먼저 재적부에 학생을 등록해주세요.</p></div>`;
+    $("#attendanceSummaryLine").textContent = "";
     return;
   }
 
@@ -81,8 +86,17 @@ async function renderAttendanceTable() {
       cell.textContent = newVal;
       cell.className = `att-cell att-${newVal === "O" ? "o" : "x"}`;
       _currentRecords[id] = newVal;
+      updateSummaryLine();
     };
   });
+
+  updateSummaryLine();
+}
+
+function updateSummaryLine() {
+  const present = Object.values(_currentRecords).filter(v => v === "O").length;
+  const roster = _currentStudentCount;
+  $("#attendanceSummaryLine").textContent = `재적 ${roster}명, 출석 ${present}명, 결석 ${roster - present}명`;
 }
 
 async function handleSaveAttendance() {

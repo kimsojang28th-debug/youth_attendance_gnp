@@ -3,7 +3,7 @@ import {
 } from "./firebase-init.js";
 import { loadClasses, getClassesCache } from "./classes.js";
 import {
-  $, escapeHtml, STUDENT_STATUS_LABEL, openModal, closeModal, todayISO, parseDelimitedLine
+  $, escapeHtml, STUDENT_STATUS_LABEL, openModal, closeModal, todayISO, parseDelimitedLine, sortByName
 } from "./utils.js";
 import { isAdmin, currentUser } from "./auth.js";
 import { addHistoryRecord } from "./history.js";
@@ -53,6 +53,10 @@ async function renderStudentsTable() {
     if (status !== "all" && s.status !== status) return false;
     return true;
   });
+
+  // 반 순서(학년/반 정의 순서) -> 그 안에서는 이름 가나다순으로 정렬
+  const classOrder = Object.fromEntries(classes.map((c, idx) => [c.id, idx]));
+  list = sortByName(list).sort((a, b) => (classOrder[a.classId] ?? 999) - (classOrder[b.classId] ?? 999));
 
   const wrap = $("#studentsTableWrap");
   if (!list.length) {
