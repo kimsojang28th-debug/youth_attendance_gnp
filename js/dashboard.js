@@ -51,13 +51,18 @@ export async function initDashboardView() {
     `).join("");
   }
 
+  // "새친구" 반은 실제로 학생이 배정되는 반이 아니라 상태(status)로만 관리되므로
+  // (새친구 학생도 실제 학년반 소속으로 들어감), 이 반별 출석 현황 표에서는 제외한다.
+  // 새친구 인원/출석은 위 카드와 각 반의 "그 중 새친구" 열에서 이미 확인 가능.
+  const weekDisplayRows = visibleRows.filter(r => r.classId !== "newcomer");
+
   const weekWrap = $("#dashboardWeekTable");
   weekWrap.innerHTML = `
     <div class="table-scroll">
     <table>
       <thead><tr><th>반</th><th>재적</th><th>출석</th><th>출석률</th><th>그 중 새친구</th></tr></thead>
       <tbody>
-        ${visibleRows.map(r => `
+        ${weekDisplayRows.map(r => `
           <tr><td>${escapeHtml(r.className)}</td><td>${r.roster}</td><td>${r.present}</td>
           <td>${r.roster ? Math.round((r.present / r.roster) * 1000) / 10 : 0}%</td>
           <td class="dim-note">${r.newRoster ? `${r.newRoster}명 (출석 ${r.newPresent})` : "-"}</td></tr>
