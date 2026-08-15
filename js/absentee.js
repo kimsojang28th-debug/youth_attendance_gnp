@@ -1,0 +1,63 @@
+import { db, collection, getDocs, query, where, orderBy, limit } from "./firebase-init.js";
+import { getClassesCache } from "./classes.js";
+import { getStudentsCache } from "./students.js";
+import { nearestSundayISO } from "./utils.js";
+
+const LOOKBACK_WEEKS = 15; // 최대 이만큼 과거까지 조회해서 연속결석 주수를 계산
+const ALERT_THRESHOLD = 3; // 이 주수 이상 연속 결석하면 대시보드에 경고 표시
+
+// classId 하나에 대해 최근 LOOKBACK_WEEKS 개의 출석 기록을 최신순으로 가져옴
+async function fetchRecentAttendance(classId, beforeOrEqualDate) {
+  const q = query(
+    collection(db, "attendance"),
+    where("classId", "==", classId),
+    where("date", "<=", beforeOrEqualDate),
+    orderBy("date", "desc"),
+    limit(LOOKBACK_WEEKS)
+  );
+  const snap = await getDocs(q);
+  // 오래된 -> 최신 순으로 정렬 반환은 최신 -> 오래된 유지 (계산 편의상)
+  return snap.docs.map(d => d.data());
+}
+
+// 연속 결석 주수 계산: 가장 최근 기록부터 역순으로 훑으며 X(또는 미기록)가 이어지는 구간 카운트
+function countConsecutiveAbsence(studentId, attendanceDocsDesc) {
+  let count = 0;
+  for (const docData of attendanceDocsDesc) {
+    const val = docData.records?.[studentId];
+    if (val === "O") break;
+    count++; // "X" 이거나 기록이 아예 없는 경우 모두 결석으로 간주
+  }
+  return count;
+}
+
+export async function computeLongTermAbsentees(visibleClassIds = null) {
+  const classes = getClassesCache().filter(c => !visibleClassIds || visibleClassIds.includes(c.id));
+  const students = getStudentsCache().filter(s => s.status === "active" || s.status === "new");
+  const asOf = nearestSundayISO();
+  const results = [];
+
+  for (const c of classes) {
+    let attDocs;
+    try {
+      attDocs = await fetchRecentAttendance(c.id, asOf);
+    } catch (err) {
+      console.warn("출석 조회 실패 (Firestore 색인이 필요할 수 있습니다):", err);
+      continue;
+    }
+    if (!attDocs.length) continue;
+
+    const classStudents = students.filter(s => s.classId === c.id);
+    for (const s of classStudents) {
+      const weeks = countConsecutiveAbsence(s.id, attDocs);
+      if (weeks >= ALERT_THRESHOLD) {
+        results.push({ studentId: s.id, name: s.name, classId: c.id, className: c.name, weeks });
+      }
+    }
+  }
+
+  results.sort((a, b) => b.weeks - a.weeks);
+  return results;
+}
+
+export { ALERT_THRESHOLD };
