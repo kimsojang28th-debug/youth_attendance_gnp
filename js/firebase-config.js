@@ -7,10 +7,10 @@
 // ============================================================
 
 export const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyCvxoTwM90Kb0z7RGLXum__-Bv5cDbaeGE",
+  authDomain: "youth-attendance-gnp.firebaseapp.com",
+  projectId: "youth-attendance-gnp",
+  storageBucket: "youth-attendance-gnp.firebasestorage.app",
+  messagingSenderId: "108123596427",
+  appId: "1:108123596427:web:a9bc73a51cd810e849168e"
 };
