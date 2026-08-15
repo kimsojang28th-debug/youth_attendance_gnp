@@ -1,7 +1,7 @@
 import { db, collection, getDocs, query, where } from "./firebase-init.js";
 import { loadClasses, getClassesCache } from "./classes.js";
 import { loadStudents, getStudentsCache } from "./students.js";
-import { $, escapeHtml, getSundaysOfYear, fmtMonthDay, sortByName, friendlyFirestoreError } from "./utils.js";
+import { $, escapeHtml, getSundaysOfYear, fmtMonthDay, sortByName, friendlyFirestoreError, openModal, closeModal } from "./utils.js";
 import { isAdmin, currentUser } from "./auth.js";
 
 export async function initAnnualView() {
@@ -49,7 +49,12 @@ async function renderAnnualTable() {
     return;
   }
   const byDate = {};
-  snap.docs.forEach(d => { byDate[d.data().date] = d.data().records || {}; });
+  const byDateNotes = {};
+  snap.docs.forEach(d => {
+    const data = d.data();
+    byDate[data.date] = data.records || {};
+    byDateNotes[data.date] = data.notes || {};
+  });
 
   if (!students.length) {
     wrap.innerHTML = `<p class="list empty" style="padding:16px;">이 반에 등록된 학생이 없습니다.</p>`;
@@ -60,10 +65,14 @@ async function renderAnnualTable() {
     let total = 0;
     const cells = sundays.map(date => {
       const val = byDate[date]?.[s.id];
+      const note = byDateNotes[date]?.[s.id];
+      const hasNote = !!(note && note.trim());
       if (val === "O") total++;
       const display = val || "-";
       const cls = val === "O" ? "att-o" : val === "X" ? "att-x" : "";
-      return `<td class="att-cell ${cls}" style="cursor:default;">${display}</td>`;
+      const noteCls = hasNote ? "att-has-note" : "";
+      const cursor = hasNote ? "cursor:pointer;" : "cursor:default;";
+      return `<td class="att-cell ${cls} ${noteCls}" style="${cursor}" data-date="${date}" ${hasNote ? `data-note="${escapeHtml(note)}"` : ""}>${display}</td>`;
     }).join("");
     return `<tr><td>${escapeHtml(s.name)}</td>${cells}<td style="font-weight:700;">${total}</td></tr>`;
   }).join("");
@@ -75,7 +84,7 @@ async function renderAnnualTable() {
   const grandTotal = weeklyTotals.reduce((a, b) => a + b, 0);
 
   wrap.innerHTML = `
-    <table>
+    <table class="annual-table">
       <thead>
         <tr><th>이름</th>${sundays.map(d => `<th>${fmtMonthDay(d)}</th>`).join("")}<th>합계</th></tr>
       </thead>
@@ -85,4 +94,22 @@ async function renderAnnualTable() {
       </tfoot>
     </table>
   `;
+
+  wrap.querySelectorAll(".att-has-note").forEach(cell => {
+    cell.onclick = () => {
+      const tr = cell.closest("tr");
+      const studentName = tr.querySelector("td:first-child").textContent;
+      const date = cell.dataset.date;
+      const note = cell.dataset.note || "";
+      openModal(`
+        <h3>출결 특이사항</h3>
+        <p style="font-size:13px;color:#6b7280;margin:0 0 10px;">${escapeHtml(studentName)} · ${escapeHtml(date)}</p>
+        <p style="white-space:pre-wrap;line-height:1.6;">${escapeHtml(note)}</p>
+        <div class="modal-actions">
+          <button id="cancelBtn" class="btn">닫기</button>
+        </div>
+      `);
+      $("#cancelBtn").onclick = closeModal;
+    };
+  });
 }

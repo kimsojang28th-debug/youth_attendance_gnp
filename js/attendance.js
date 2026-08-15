@@ -16,13 +16,14 @@ export async function getAttendanceDoc(classId, date) {
   return snap.exists() ? snap.data() : null;
 }
 
-export async function saveAttendanceDoc(classId, date, records) {
+export async function saveAttendanceDoc(classId, date, records, notes = {}) {
   await setDoc(doc(db, "attendance", attendanceDocId(classId, date)), {
-    classId, date, records, checkedBy: currentUser.uid, checkedAt: serverTimestamp()
+    classId, date, records, notes, checkedBy: currentUser.uid, checkedAt: serverTimestamp()
   });
 }
 
 let _currentRecords = {};
+let _currentNotes = {};
 let _currentStudentCount = 0;
 
 export async function initAttendanceView() {
@@ -62,6 +63,7 @@ async function renderAttendanceTable() {
   );
   const existing = await getAttendanceDoc(classId, date);
   _currentRecords = existing?.records ? { ...existing.records } : {};
+  _currentNotes = existing?.notes ? { ...existing.notes } : {};
   _currentStudentCount = students.length;
 
   const wrap = $("#attendanceTableWrap");
@@ -74,21 +76,23 @@ async function renderAttendanceTable() {
   wrap.innerHTML = `
     <div class="table-scroll">
     <table>
-      <thead><tr><th>이름</th><th>상태</th><th>출석</th></tr></thead>
+      <thead><tr><th>이름</th><th>상태</th><th>출석</th><th>출결사유/특이사항</th></tr></thead>
       <tbody>
         ${students.map(s => {
           const val = _currentRecords[s.id] || "X";
+          const note = _currentNotes[s.id] || "";
           return `
             <tr data-id="${s.id}">
               <td>${escapeHtml(s.name)}</td>
               <td>${s.status === "new" ? "새친구" : s.status === "leave" ? "휴학" : "재적"}</td>
               <td class="att-cell att-${val === "O" ? "o" : "x"}" data-val="${val}">${val}</td>
+              <td><input type="text" class="att-note-input" value="${escapeHtml(note)}" placeholder="예: 가족여행, 감기몸살 등" /></td>
             </tr>`;
         }).join("")}
       </tbody>
     </table>
     </div>
-    <p style="font-size:12.5px;color:#868e96;margin-top:8px;">출석 셀을 클릭하면 O/X가 전환됩니다.</p>
+    <p style="font-size:12.5px;color:#868e96;margin-top:8px;">출석 셀을 클릭하면 O/X가 전환됩니다. 결석 사유나 특이사항은 뒤 칸에 적어주세요.</p>
   `;
 
   wrap.querySelectorAll(".att-cell").forEach(cell => {
@@ -101,6 +105,14 @@ async function renderAttendanceTable() {
       cell.className = `att-cell att-${newVal === "O" ? "o" : "x"}`;
       _currentRecords[id] = newVal;
       updateSummaryLine();
+    };
+  });
+
+  wrap.querySelectorAll(".att-note-input").forEach(input => {
+    input.oninput = () => {
+      const tr = input.closest("tr");
+      const id = tr.dataset.id;
+      _currentNotes[id] = input.value;
     };
   });
 
@@ -117,6 +129,6 @@ async function handleSaveAttendance() {
   const classId = $("#attendanceClassSelect").value;
   const date = $("#attendanceDate").value;
   if (!classId || !date) return;
-  await saveAttendanceDoc(classId, date, _currentRecords);
+  await saveAttendanceDoc(classId, date, _currentRecords, _currentNotes);
   toast(`${date} 출석이 저장되었습니다.`, $("#attendanceSaveMsg"));
 }

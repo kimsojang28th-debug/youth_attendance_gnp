@@ -168,6 +168,20 @@ tr:hover td { background: #f8f9fd; }
 .att-cell { cursor: pointer; text-align: center; font-weight: 700; user-select: none; }
 .att-o { color: var(--success); }
 .att-x { color: var(--danger); }
+/* 출결사유/특이사항이 있는 날짜는 진한 보라색으로 표시 + 클릭하면 팝업으로 내용 확인 */
+.att-cell.att-has-note { color: #5f3dc4; text-decoration: underline dotted; text-underline-offset: 3px; }
+
+.att-note-input {
+  width: 100%; min-width: 160px; padding: 6px 8px; border: 1px solid var(--border);
+  border-radius: 6px; font-size: 13px;
+}
+
+/* 연간출석부: 가로 스크롤 시 이름 열은 고정되도록 */
+.annual-table th:first-child, .annual-table td:first-child {
+  position: sticky; left: 0; z-index: 2; background: #fff;
+}
+.annual-table thead th:first-child { z-index: 3; }
+.annual-table tr:hover td:first-child { background: #f8f9fd; }
 
 .list .list-item {
   display: flex; justify-content: space-between; align-items: center;
