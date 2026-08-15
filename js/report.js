@@ -25,6 +25,7 @@ export async function buildAttendanceDetail(date) {
   const students = getStudentsCache();
   const details = [];
   let totalRoster = 0, totalPresent = 0;
+  let totalRegularRoster = 0, totalRegularPresent = 0, totalNewRoster = 0, totalNewPresent = 0;
 
   for (const c of classes) {
     const classStudents = sortByName(
@@ -40,18 +41,43 @@ export async function buildAttendanceDetail(date) {
     }));
     const present = studentRows.filter(s => s.val === "O").length;
     const roster = studentRows.length;
+
+    // 새친구는 반 소속이지만 상태가 다르므로, 정회원/새친구를 나눈 소계도 함께 계산
+    // (전체 재적/출석 합계는 그대로 유지하고, 새친구 소계는 참고용으로 별도 제공)
+    const regularRows = studentRows.filter(s => !s.isNew);
+    const newRows = studentRows.filter(s => s.isNew);
+    const regularRoster = regularRows.length;
+    const regularPresent = regularRows.filter(s => s.val === "O").length;
+    const newRoster = newRows.length;
+    const newPresent = newRows.filter(s => s.val === "O").length;
+
     totalRoster += roster;
     totalPresent += present;
-    details.push({ classId: c.id, className: c.name, roster, present, students: studentRows });
+    totalRegularRoster += regularRoster;
+    totalRegularPresent += regularPresent;
+    totalNewRoster += newRoster;
+    totalNewPresent += newPresent;
+
+    details.push({
+      classId: c.id, className: c.name, roster, present,
+      regularRoster, regularPresent, newRoster, newPresent,
+      students: studentRows
+    });
   }
-  return { details, totalRoster, totalPresent };
+  return {
+    details, totalRoster, totalPresent,
+    totalRegularRoster, totalRegularPresent, totalNewRoster, totalNewPresent
+  };
 }
 
 async function renderReport() {
   const date = $("#reportDate").value;
   if (!date) return;
   const meta = await getWeeklyMeta(date);
-  const { details, totalRoster, totalPresent } = await buildAttendanceDetail(date);
+  const {
+    details, totalRoster, totalPresent,
+    totalRegularRoster, totalRegularPresent, totalNewRoster, totalNewPresent
+  } = await buildAttendanceDetail(date);
   const offering = meta.offering || {};
   const offeringTotal = ["weekly", "tithe", "thanks", "other"]
     .reduce((sum, k) => sum + (Number(offering[k]) || 0), 0);
@@ -98,7 +124,10 @@ async function renderReport() {
           <div class="report-class-card">
             <div class="report-class-card-header">
               <span>${escapeHtml(d.className)}</span>
-              <span class="report-class-tally">${d.present}/${d.roster}</span>
+            </div>
+            <div class="report-class-subtotals">
+              <div class="report-subtotal-line">정회원 재적 ${d.regularRoster}명 · 출석 ${d.regularPresent}명</div>
+              <div class="report-subtotal-line report-subtotal-new">새친구 재적 ${d.newRoster}명 · 출석 ${d.newPresent}명</div>
             </div>
             <div class="report-class-card-body">
               ${d.students.length ? d.students.map(s => `
@@ -114,6 +143,10 @@ async function renderReport() {
       <p style="margin-top:16px;font-weight:700;">
         전체 합계: 재적 ${totalRoster}명 / 출석 ${totalPresent}명 / 결석 ${totalRoster - totalPresent}명
         (${totalRoster ? Math.round((totalPresent / totalRoster) * 1000) / 10 : 0}%)
+      </p>
+      <p style="margin-top:4px;font-size:12.5px;color:#6b7280;">
+        정회원 재적 ${totalRegularRoster}명 · 출석 ${totalRegularPresent}명 &nbsp;/&nbsp;
+        새친구 재적 ${totalNewRoster}명 · 출석 ${totalNewPresent}명
       </p>
     </div>
   `;

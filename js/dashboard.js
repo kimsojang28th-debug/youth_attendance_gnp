@@ -16,16 +16,25 @@ export async function initDashboardView() {
   const { details } = await buildAttendanceDetail(date);
   const visibleRows = details.filter(d => visibleIds.includes(d.classId));
   const rowsTotal = visibleRows.reduce((acc, r) => ({ roster: acc.roster + r.roster, present: acc.present + r.present }), { roster: 0, present: 0 });
+  // 새친구는 반 소속과 무관한 '상태'이므로, 전체 재적/출석 합계에는 그대로 포함하되
+  // 그 중 새친구가 몇 명인지는 참고용으로 별도 표시한다.
+  const rowsNewTotal = visibleRows.reduce((acc, r) => ({ roster: acc.roster + r.newRoster, present: acc.present + r.newPresent }), { roster: 0, present: 0 });
 
   const activeCount = students.filter(s => s.status === "active").length;
   const newCount = students.filter(s => s.status === "new").length;
   const leaveCount = students.filter(s => s.status === "leave").length;
 
   $("#dashboardCards").innerHTML = `
-    <div class="stat-card"><div class="label">전체 재적 인원</div><div class="value">${activeCount + newCount}</div></div>
+    <div class="stat-card">
+      <div class="label">전체 재적 인원</div><div class="value">${activeCount + newCount}</div>
+      <div class="stat-sub">(새친구 ${newCount}명 포함)</div>
+    </div>
     <div class="stat-card"><div class="label">새친구</div><div class="value">${newCount}</div></div>
     <div class="stat-card"><div class="label">휴학</div><div class="value">${leaveCount}</div></div>
-    <div class="stat-card"><div class="label">이번 주(${date}) 출석</div><div class="value">${rowsTotal.present} / ${rowsTotal.roster}</div></div>
+    <div class="stat-card">
+      <div class="label">이번 주(${date}) 출석</div><div class="value">${rowsTotal.present} / ${rowsTotal.roster}</div>
+      <div class="stat-sub">(그 중 새친구 출석 ${rowsNewTotal.present} / ${rowsNewTotal.roster})</div>
+    </div>
     <div class="stat-card"><div class="label">이번 주 출석률</div><div class="value">${rowsTotal.roster ? Math.round((rowsTotal.present / rowsTotal.roster) * 1000) / 10 : 0}%</div></div>
   `;
 
@@ -46,11 +55,12 @@ export async function initDashboardView() {
   weekWrap.innerHTML = `
     <div class="table-scroll">
     <table>
-      <thead><tr><th>반</th><th>재적</th><th>출석</th><th>출석률</th></tr></thead>
+      <thead><tr><th>반</th><th>재적</th><th>출석</th><th>출석률</th><th>그 중 새친구</th></tr></thead>
       <tbody>
         ${visibleRows.map(r => `
           <tr><td>${escapeHtml(r.className)}</td><td>${r.roster}</td><td>${r.present}</td>
-          <td>${r.roster ? Math.round((r.present / r.roster) * 1000) / 10 : 0}%</td></tr>
+          <td>${r.roster ? Math.round((r.present / r.roster) * 1000) / 10 : 0}%</td>
+          <td class="dim-note">${r.newRoster ? `${r.newRoster}명 (출석 ${r.newPresent})` : "-"}</td></tr>
         `).join("")}
       </tbody>
     </table>
