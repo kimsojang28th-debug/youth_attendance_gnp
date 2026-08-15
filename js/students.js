@@ -138,8 +138,13 @@ function openStudentModal(student = null) {
   if (isEdit) {
     $("#deleteBtn").onclick = async () => {
       if (!confirm(`${student.name} 학생 정보를 삭제할까요?\n관련된 재적변동이력도 함께 삭제됩니다. (지난 출석 기록은 유지됩니다)`)) return;
-      await deleteDoc(doc(db, "students", student.id));
-      await deleteHistoryForStudent(student.id);
+      try {
+        await deleteDoc(doc(db, "students", student.id));
+        await deleteHistoryForStudent(student.id);
+      } catch (err) {
+        alert(`삭제 중 오류가 발생했습니다: ${err.message || err}\n(권한 문제일 수 있습니다. 담당 반이 맞는지 확인해주세요.)`);
+        return;
+      }
       await loadStudents(true);
       closeModal();
       renderStudentsTable();
@@ -211,25 +216,32 @@ function openBulkImportModal(visibleClasses) {
     const nameToClassId = Object.fromEntries(visibleClasses.map(c => [c.name, c.id]));
     let success = 0, fail = 0;
 
+    const failedLines = [];
     for (const line of lines) {
       const parts = parseDelimitedLine(line).map(p => p.trim());
       const [name, className, genderRaw, statusRaw] = parts;
       const classId = nameToClassId[className];
-      if (!name || !classId) { fail++; continue; }
+      if (!name || !classId) { fail++; failedLines.push(line); continue; }
       const gender = (genderRaw === "여" || genderRaw === "F") ? "F" : "M";
       const status = CSV_STATUS_MAP[statusRaw] || "active";
       const joinDate = todayISO();
-      const ref = await addDoc(collection(db, "students"), {
-        name, classId, gender, status, joinDate, note: "",
-        order: Date.now() + success, createdAt: serverTimestamp()
-      });
-      await addHistoryRecord({
-        studentId: ref.id, studentName: name, classId,
-        type: status === "new" ? "new" : "transfer_in", date: joinDate, note: "CSV 일괄등록"
-      });
-      success++;
+      try {
+        const ref = await addDoc(collection(db, "students"), {
+          name, classId, gender, status, joinDate, note: "",
+          order: Date.now() + success, createdAt: serverTimestamp()
+        });
+        await addHistoryRecord({
+          studentId: ref.id, studentName: name, classId,
+          type: status === "new" ? "new" : "transfer_in", date: joinDate, note: "CSV 일괄등록"
+        });
+        success++;
+      } catch (err) {
+        fail++;
+        failedLines.push(`${line} (오류: ${err.message || err})`);
+      }
     }
-    $("#importMsg").textContent = `${success}명 등록 완료${fail ? `, ${fail}건 실패(반 이름 확인 필요)` : ""}`;
+    $("#importMsg").innerHTML = `${success}명 등록 완료${fail ? `, ${fail}건 실패` : ""}` +
+      (failedLines.length ? `<br/><span style="color:#e03131;">실패 항목: ${failedLines.map(escapeHtml).join(" / ")}</span>` : "");
     await loadStudents(true);
     renderStudentsTable();
   };

@@ -7,7 +7,7 @@ import { isAdmin, currentUser } from "./auth.js";
 
 export async function initDashboardView() {
   const classes = await loadClasses();
-  await loadStudents();
+  await loadStudents(true); // 항상 최신 데이터로 새로고침 (다른 화면/탭에서 방금 삭제한 내용이 바로 반영되도록)
   const visible = isAdmin() ? classes : classes.filter(c => currentUser.classIds.includes(c.id));
   const visibleIds = visible.map(c => c.id);
   const students = getStudentsCache().filter(s => visibleIds.includes(s.classId));
