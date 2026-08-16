@@ -22,7 +22,7 @@ export async function initDashboardView() {
 
   const activeCount = students.filter(s => s.status === "active").length;
   const newCount = students.filter(s => s.status === "new").length;
-  const leaveCount = students.filter(s => s.status === "leave").length;
+  const holdCount = students.filter(s => s.status === "hold").length;
 
   $("#dashboardCards").innerHTML = `
     <div class="stat-card">
@@ -30,7 +30,7 @@ export async function initDashboardView() {
       <div class="stat-sub">(새친구 ${newCount}명 포함)</div>
     </div>
     <div class="stat-card"><div class="label">새친구</div><div class="value">${newCount}</div></div>
-    <div class="stat-card"><div class="label">휴학</div><div class="value">${leaveCount}</div></div>
+    <div class="stat-card"><div class="label">보류</div><div class="value">${holdCount}</div></div>
     <div class="stat-card">
       <div class="label">이번 주(${date}) 출석</div><div class="value">${rowsTotal.present} / ${rowsTotal.roster}</div>
       <div class="stat-sub">(그 중 새친구 출석 ${rowsNewTotal.present} / ${rowsNewTotal.roster})</div>

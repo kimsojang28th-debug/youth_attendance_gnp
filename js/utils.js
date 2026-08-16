@@ -11,19 +11,22 @@ export function escapeHtml(str = "") {
     .replaceAll('"', "&quot;");
 }
 
+// 2026-08-16: 학생 상태를 5개(재적/새친구/휴학/전출/제적)에서 4개(재적/새친구/보류/제적)로 단순화.
+// 기존의 "휴학"/"전출"은 하나의 "보류" 상태로 통합됨(js/students.js의 일괄 정리 도구로 기존 데이터도 이관 가능).
 export const STUDENT_STATUS_LABEL = {
   active: "재적",
   new: "새친구",
-  leave: "휴학",
-  transferred_out: "전출",
+  hold: "보류",
   removed: "제적"
 };
 
 export const HISTORY_TYPE_LABEL = {
+  active: "재적",
   new: "새친구 등록",
   transfer_in: "전입",
   transfer_out: "전출",
   leave: "휴학",
+  hold: "보류",
   return: "복학/복귀",
   removed: "제적"
 };

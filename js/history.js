@@ -133,6 +133,7 @@ function openHistoryModal(record = null) {
       <option value="transfer_in" ${record?.type === "transfer_in" ? "selected" : ""}>전입</option>
       <option value="transfer_out" ${record?.type === "transfer_out" ? "selected" : ""}>전출</option>
       <option value="leave" ${record?.type === "leave" ? "selected" : ""}>휴학</option>
+      <option value="hold" ${record?.type === "hold" ? "selected" : ""}>보류</option>
       <option value="return" ${record?.type === "return" ? "selected" : ""}>복학/복귀</option>
       <option value="removed" ${record?.type === "removed" ? "selected" : ""}>제적</option>
     </select>

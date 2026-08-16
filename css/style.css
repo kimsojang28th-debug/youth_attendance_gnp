@@ -161,8 +161,7 @@ tr:hover td { background: #f8f9fd; }
 .badge-x { background: var(--danger-bg); color: var(--danger); }
 .badge-active { background: #ebfbee; color: var(--success); }
 .badge-new { background: #e7f5ff; color: #1971c2; }
-.badge-leave { background: #fff9db; color: #e67700; }
-.badge-transferred_out { background: #f1f3f5; color: #495057; }
+.badge-hold { background: #fff9db; color: #e67700; }
 .badge-removed { background: #f1f3f5; color: #868e96; }
 
 .att-cell { cursor: pointer; text-align: center; font-weight: 700; user-select: none; }
@@ -248,10 +247,44 @@ tr:hover td { background: #f8f9fd; }
 .badge.badge-has-note { background: #efe9fc; color: #5f3dc4; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px; }
 
 /* ---------- 주간보고서: 읽기 전용(결과만 표시) 필드 ---------- */
-.report-readonly-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 14px;
-}
-.report-readonly-label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
-.report-readonly-value { display: block; font-size: 14.5px; font-weight: 600; color: var(--text); }
+.report-readonly-label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+.report-readonly-value { display: block; font-size: 15px; font-weight: 700; color: var(--text); }
 .report-readonly-block { white-space: pre-wrap; line-height: 1.7; font-size: 14px; color: var(--text); margin: 0; min-height: 24px; }
+
+/* 주간보고서: 설교 및 예배 정보 - 아이콘이 있는 카드형 배치 */
+.report-info-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+.report-info-card {
+  display: flex; align-items: flex-start; gap: 12px;
+  background: #f8f9fc; border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px 16px;
+}
+.report-info-icon { font-size: 20px; line-height: 1.2; }
+
+/* 주간보고서: 헌금 내역 - 항목별 카드 + 합계 강조 박스 */
+.report-offering-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px; margin-bottom: 12px;
+}
+.report-offering-item {
+  background: #fffaf0; border: 1px solid #ffe8bf; border-radius: 10px;
+  padding: 12px 14px; text-align: center;
+}
+.report-offering-icon { display: block; font-size: 18px; margin-bottom: 4px; }
+.report-offering-label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+.report-offering-value { display: block; font-size: 15px; font-weight: 800; color: #c9700a; }
+.report-offering-total {
+  background: #eef1fd; border: 1px solid #c7d0f7; border-radius: 8px;
+  padding: 10px 16px; font-size: 14.5px; font-weight: 700; color: var(--text); text-align: right;
+}
+.report-offering-total strong { color: var(--primary); font-size: 18px; margin-left: 6px; }
+
+/* ---------- 예배정보입력: 가로로 넓고, 창 크기에 맞춰 자동으로 너비가 조절되는 textarea ---------- */
+.worship-textarea {
+  display: block; width: 100%; box-sizing: border-box;
+  min-height: 150px; padding: 12px 14px; border: 1px solid var(--border);
+  border-radius: 8px; font-size: 14px; font-family: inherit; line-height: 1.6;
+  resize: vertical;
+}

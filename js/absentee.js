@@ -62,7 +62,8 @@ export async function computeLongTermAbsentees(visibleClassIds = null) {
     }
   }
 
-  results.sort((a, b) => b.weeks - a.weeks);
+  // 연속 결석 주수가 적은 학생부터(작은 순 -> 많은 순) 보여주도록 정렬 (2026-08-16, 사용자 요청으로 정렬 반대로 변경)
+  results.sort((a, b) => a.weeks - b.weeks);
   return { results, indexError };
 }
 

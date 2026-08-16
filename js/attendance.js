@@ -58,8 +58,9 @@ async function renderAttendanceTable() {
   const date = $("#attendanceDate").value;
   if (!classId || !date) return;
 
+  // "제적" 상태만 출석체크 명단에서 제외 (재적/새친구/보류 학생은 모두 출석체크 대상에 포함)
   const students = sortByName(
-    getStudentsCache().filter(s => s.classId === classId && s.status !== "removed" && s.status !== "transferred_out")
+    getStudentsCache().filter(s => s.classId === classId && s.status !== "removed")
   );
   const existing = await getAttendanceDoc(classId, date);
   _currentRecords = existing?.records ? { ...existing.records } : {};
@@ -91,7 +92,7 @@ async function renderAttendanceTable() {
           return `
             <tr data-id="${s.id}">
               <td>${escapeHtml(s.name)}</td>
-              <td>${s.status === "new" ? "새친구" : s.status === "leave" ? "휴학" : "재적"}</td>
+              <td>${s.status === "new" ? "새친구" : s.status === "hold" ? "보류" : "재적"}</td>
               <td class="att-cell att-${val === "O" ? "o" : "x"}" data-val="${val}">${val}</td>
               <td><input type="text" class="att-note-input" value="${escapeHtml(note)}" placeholder="예: 가족여행, 감기몸살 등" /></td>
             </tr>`;

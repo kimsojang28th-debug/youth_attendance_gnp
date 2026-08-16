@@ -63,12 +63,12 @@ async function renderWorshipForm() {
 
     <div class="panel">
       <h3>주간심방 및 기도제목 / 건의사항</h3>
-      <textarea id="m_visitationNotes" rows="10">${escapeHtml(meta.visitationNotes || "")}</textarea>
+      <textarea id="m_visitationNotes" class="worship-textarea" rows="6">${escapeHtml(meta.visitationNotes || "")}</textarea>
     </div>
 
     <div class="panel">
       <h3>실시 및 예정 사항</h3>
-      <textarea id="m_scheduleNotes" rows="10">${escapeHtml(meta.scheduleNotes || "")}</textarea>
+      <textarea id="m_scheduleNotes" class="worship-textarea" rows="6">${escapeHtml(meta.scheduleNotes || "")}</textarea>
     </div>
 
     <button id="saveMetaBtn" class="btn btn-primary">예배정보 저장</button>

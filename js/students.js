@@ -3,7 +3,7 @@ import {
 } from "./firebase-init.js";
 import { loadClasses, getClassesCache } from "./classes.js";
 import {
-  $, escapeHtml, STUDENT_STATUS_LABEL, openModal, closeModal, todayISO, parseDelimitedLine, sortByName
+  $, escapeHtml, STUDENT_STATUS_LABEL, openModal, closeModal, todayISO, parseDelimitedLine, sortByName, toast
 } from "./utils.js";
 import { isAdmin, currentUser } from "./auth.js";
 import { addHistoryRecord, deleteHistoryForStudent } from "./history.js";
@@ -59,12 +59,32 @@ async function renderStudentsTable() {
   list = sortByName(list).sort((a, b) => (classOrder[a.classId] ?? 999) - (classOrder[b.classId] ?? 999));
 
   const wrap = $("#studentsTableWrap");
+
+  // 관리자 전용 일괄 정리 도구 (2026-08-16 추가): 상태 체계를 5개→4개로 정리하면서 남는
+  // 과거 데이터(휴학/전출로 저장된 학생, 제각각인 등록일)를 실제 Firestore에서 한 번에 손볼 수 있도록 함.
+  const adminToolsHtml = isAdmin() ? `
+    <div class="panel" style="margin-bottom:14px;">
+      <h3>일괄 정리 도구 (관리자 전용 · 1회성 작업)</h3>
+      <p style="font-size:12.5px;color:#6b7280;margin:0 0 10px;line-height:1.6;">
+        학생 상태를 5단계(재적·새친구·휴학·전출·제적)에서 4단계(재적·새친구·보류·제적)로 정리했습니다.
+        예전에 "휴학" 또는 "전출"로 등록돼 있던 학생들을 한 번에 "보류"로 옮기거나, 전체 학생의 등록일을
+        한 번에 맞추고 싶을 때 아래 버튼을 사용하세요. 실행 전 확인 창이 뜨고, 실행 후에는 되돌릴 수 없습니다.
+      </p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button id="migrateStatusBtn" class="btn">"휴학·전출" → "보류"로 일괄 변경</button>
+        <button id="migrateJoinDateBtn" class="btn">전체 학생 등록일을 2026-01-01로 일괄 변경</button>
+      </div>
+      <p id="migrateMsg" class="save-msg"></p>
+    </div>
+  ` : "";
+
   if (!list.length) {
-    wrap.innerHTML = `<div class="panel"><p class="list empty">표시할 학생이 없습니다.</p></div>`;
+    wrap.innerHTML = adminToolsHtml + `<div class="panel"><p class="list empty">표시할 학생이 없습니다.</p></div>`;
+    bindAdminTools();
     return;
   }
 
-  wrap.innerHTML = `
+  wrap.innerHTML = adminToolsHtml + `
     <div class="table-scroll">
     <table>
       <thead><tr>
@@ -94,6 +114,50 @@ async function renderStudentsTable() {
       openStudentModal(student);
     };
   });
+
+  bindAdminTools();
+}
+
+function bindAdminTools() {
+  const statusBtn = $("#migrateStatusBtn");
+  const joinBtn = $("#migrateJoinDateBtn");
+  if (statusBtn) {
+    statusBtn.onclick = async () => {
+      // 예전 상태값(leave/transferred_out)이 남아있는 학생을 전부 찾아서 "보류"(hold)로 옮김
+      const targets = _studentsCache.filter(s => s.status === "leave" || s.status === "transferred_out");
+      if (!targets.length) { toast('"휴학"·"전출" 상태인 학생이 없습니다. (이미 정리되어 있을 수 있습니다)', $("#migrateMsg")); return; }
+      if (!confirm(`"휴학"·"전출" 상태인 학생 ${targets.length}명을 전부 "보류"로 변경할까요?`)) return;
+      statusBtn.disabled = true;
+      try {
+        for (const s of targets) {
+          await updateDoc(doc(db, "students", s.id), { status: "hold" });
+        }
+      } catch (err) {
+        alert(`일괄 변경 중 오류가 발생했습니다: ${err.message || err}`);
+      }
+      await loadStudents(true);
+      renderStudentsTable();
+      toast(`${targets.length}명을 "보류" 상태로 변경했습니다.`, $("#migrateMsg"));
+    };
+  }
+  if (joinBtn) {
+    joinBtn.onclick = async () => {
+      const all = _studentsCache;
+      if (!all.length) return;
+      if (!confirm(`전체 학생 ${all.length}명의 등록일을 2026-01-01로 일괄 변경할까요?\n되돌릴 수 없으니 신중하게 진행해주세요.`)) return;
+      joinBtn.disabled = true;
+      try {
+        for (const s of all) {
+          await updateDoc(doc(db, "students", s.id), { joinDate: "2026-01-01" });
+        }
+      } catch (err) {
+        alert(`일괄 변경 중 오류가 발생했습니다: ${err.message || err}`);
+      }
+      await loadStudents(true);
+      renderStudentsTable();
+      toast(`전체 학생 ${all.length}명의 등록일을 2026-01-01로 변경했습니다.`, $("#migrateMsg"));
+    };
+  }
 }
 
 function openStudentModal(student = null) {
@@ -118,8 +182,7 @@ function openStudentModal(student = null) {
     <select id="f_status">
       <option value="active" ${student?.status === "active" ? "selected" : ""}>재적</option>
       <option value="new" ${student?.status === "new" ? "selected" : ""}>새친구</option>
-      <option value="leave" ${student?.status === "leave" ? "selected" : ""}>휴학</option>
-      <option value="transferred_out" ${student?.status === "transferred_out" ? "selected" : ""}>전출</option>
+      <option value="hold" ${student?.status === "hold" ? "selected" : ""}>보류</option>
       <option value="removed" ${student?.status === "removed" ? "selected" : ""}>제적</option>
     </select>
     <label>등록일</label>
@@ -169,7 +232,7 @@ function openStudentModal(student = null) {
       if (prevStatus !== payload.status) {
         await addHistoryRecord({
           studentId: student.id, studentName: payload.name, classId: payload.classId,
-          type: payload.status, date: todayISO(), note: `상태 변경: ${STUDENT_STATUS_LABEL[prevStatus]} → ${STUDENT_STATUS_LABEL[payload.status]}`
+          type: payload.status, date: todayISO(), note: `상태 변경: ${STUDENT_STATUS_LABEL[prevStatus] || prevStatus} → ${STUDENT_STATUS_LABEL[payload.status] || payload.status}`
         });
       }
     } else {
@@ -185,8 +248,10 @@ function openStudentModal(student = null) {
   };
 }
 
+// "휴학"/"전출"은 예전 CSV/구글시트에 남아있을 수 있는 표현이라, 붙여넣었을 때도 "보류"로 인식되도록
+// 하위호환으로 함께 매핑해둠 (실제 상태값은 4개: active/new/hold/removed).
 const CSV_STATUS_MAP = {
-  "재적": "active", "새친구": "new", "휴학": "leave", "전출": "transferred_out", "제적": "removed"
+  "재적": "active", "새친구": "new", "보류": "hold", "휴학": "hold", "전출": "hold", "제적": "removed"
 };
 
 function openBulkImportModal(visibleClasses) {

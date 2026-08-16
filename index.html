@@ -58,14 +58,14 @@
     </div>
     <nav id="mainNav" class="main-nav">
       <button data-view="dashboard" class="nav-btn active">대시보드</button>
-      <button data-view="attendance" class="nav-btn">출석체크</button>
-      <button data-view="students" class="nav-btn">재적부</button>
-      <button data-view="classes" class="nav-btn">반 관리</button>
-      <button data-view="worship" class="nav-btn">예배정보입력</button>
       <button data-view="report" class="nav-btn">주간보고서</button>
       <button data-view="annual" class="nav-btn">연간출석부</button>
-      <button data-view="stats" class="nav-btn">통계</button>
+      <button data-view="attendance" class="nav-btn">출석체크</button>
+      <button data-view="worship" class="nav-btn">예배정보입력</button>
+      <button data-view="students" class="nav-btn">재적부</button>
+      <button data-view="classes" class="nav-btn">반 관리</button>
       <button data-view="history" class="nav-btn">재적변동이력</button>
+      <button data-view="stats" class="nav-btn">통계</button>
       <button data-view="import" class="nav-btn">출석 가져오기</button>
     </nav>
   </header>
@@ -77,12 +77,12 @@
       <h2>대시보드</h2>
       <div class="card-grid" id="dashboardCards"></div>
       <div class="panel">
-        <h3>⚠️ 장기결석 학생 (최근 3주 연속 결석)</h3>
-        <div id="absenteeList" class="list"></div>
-      </div>
-      <div class="panel">
         <h3>이번 주 반별 출석 현황</h3>
         <div id="dashboardWeekTable"></div>
+      </div>
+      <div class="panel">
+        <h3>⚠️ 장기결석 학생 (최근 3주 연속 결석)</h3>
+        <div id="absenteeList" class="list"></div>
       </div>
     </section>
 
@@ -113,8 +113,7 @@
           <option value="all">전체 상태</option>
           <option value="active">재적</option>
           <option value="new">새친구</option>
-          <option value="leave">휴학</option>
-          <option value="transferred_out">전출</option>
+          <option value="hold">보류</option>
           <option value="removed">제적</option>
         </select>
         <button id="addStudentBtn" class="btn btn-primary">+ 학생 추가</button>

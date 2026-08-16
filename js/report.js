@@ -104,22 +104,47 @@ async function renderReport() {
   $("#reportBody").innerHTML = `
     <div class="panel">
       <h3>설교 및 예배 정보</h3>
-      <div class="report-readonly-grid">
-        <div><span class="report-readonly-label">설교 본문</span><span class="report-readonly-value">${escapeHtml(meta.sermonText || "-")}</span></div>
-        <div><span class="report-readonly-label">설교 제목</span><span class="report-readonly-value">${escapeHtml(meta.sermonTitle || "-")}</span></div>
-        <div><span class="report-readonly-label">설교자</span><span class="report-readonly-value">${escapeHtml(meta.preacher || "-")}</span></div>
+      <div class="report-info-grid">
+        <div class="report-info-card">
+          <span class="report-info-icon">📖</span>
+          <div><span class="report-readonly-label">설교 본문</span><span class="report-readonly-value">${escapeHtml(meta.sermonText || "-")}</span></div>
+        </div>
+        <div class="report-info-card">
+          <span class="report-info-icon">📝</span>
+          <div><span class="report-readonly-label">설교 제목</span><span class="report-readonly-value">${escapeHtml(meta.sermonTitle || "-")}</span></div>
+        </div>
+        <div class="report-info-card">
+          <span class="report-info-icon">🎤</span>
+          <div><span class="report-readonly-label">설교자</span><span class="report-readonly-value">${escapeHtml(meta.preacher || "-")}</span></div>
+        </div>
       </div>
     </div>
 
     <div class="panel">
       <h3>헌금 내역</h3>
-      <div class="report-readonly-grid">
-        <div><span class="report-readonly-label">주일헌금</span><span class="report-readonly-value">₩${(offering.weekly || 0).toLocaleString()}</span></div>
-        <div><span class="report-readonly-label">십일조</span><span class="report-readonly-value">₩${(offering.tithe || 0).toLocaleString()}</span></div>
-        <div><span class="report-readonly-label">감사헌금</span><span class="report-readonly-value">₩${(offering.thanks || 0).toLocaleString()}</span></div>
-        <div><span class="report-readonly-label">기타(절기 등)</span><span class="report-readonly-value">₩${(offering.other || 0).toLocaleString()}</span></div>
+      <div class="report-offering-grid">
+        <div class="report-offering-item">
+          <span class="report-offering-icon">🙏</span>
+          <span class="report-offering-label">주일헌금</span>
+          <span class="report-offering-value">₩${(offering.weekly || 0).toLocaleString()}</span>
+        </div>
+        <div class="report-offering-item">
+          <span class="report-offering-icon">💛</span>
+          <span class="report-offering-label">십일조</span>
+          <span class="report-offering-value">₩${(offering.tithe || 0).toLocaleString()}</span>
+        </div>
+        <div class="report-offering-item">
+          <span class="report-offering-icon">✨</span>
+          <span class="report-offering-label">감사헌금</span>
+          <span class="report-offering-value">₩${(offering.thanks || 0).toLocaleString()}</span>
+        </div>
+        <div class="report-offering-item">
+          <span class="report-offering-icon">🎉</span>
+          <span class="report-offering-label">기타(절기 등)</span>
+          <span class="report-offering-value">₩${(offering.other || 0).toLocaleString()}</span>
+        </div>
       </div>
-      <p style="margin-top:10px;font-weight:700;">합계: ₩${offeringTotal.toLocaleString()}</p>
+      <div class="report-offering-total">헌금 합계 <strong>₩${offeringTotal.toLocaleString()}</strong></div>
     </div>
 
     <div class="panel">
