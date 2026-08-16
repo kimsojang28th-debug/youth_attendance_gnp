@@ -108,9 +108,10 @@ export function toast(msg, el) {
 }
 
 // 모달 열기/닫기
-export function openModal(innerHtml) {
+// opts.wide: 학생 프로필처럼 내용이 많은 모달을 더 넓게 띄우고 싶을 때 true로 전달
+export function openModal(innerHtml, opts = {}) {
   const root = $("#modalRoot");
-  root.innerHTML = `<div class="modal-box">${innerHtml}</div>`;
+  root.innerHTML = `<div class="modal-box${opts.wide ? " modal-wide" : ""}">${innerHtml}</div>`;
   root.classList.remove("hidden");
   root.onclick = (e) => { if (e.target === root) closeModal(); };
 }

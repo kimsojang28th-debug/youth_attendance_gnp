@@ -3,7 +3,7 @@ import {
 } from "./firebase-init.js";
 import { loadClasses, getClassesCache } from "./classes.js";
 import {
-  $, escapeHtml, STUDENT_STATUS_LABEL, openModal, closeModal, todayISO, parseDelimitedLine, sortByName
+  $, $all, escapeHtml, STUDENT_STATUS_LABEL, openModal, closeModal, todayISO, parseDelimitedLine, sortByName
 } from "./utils.js";
 import { isAdmin, currentUser } from "./auth.js";
 import { addHistoryRecord, deleteHistoryForStudent } from "./history.js";
@@ -74,7 +74,7 @@ async function renderStudentsTable() {
       <tbody>
         ${list.map(s => `
           <tr data-id="${s.id}">
-            <td>${escapeHtml(s.name)}</td>
+            <td><a href="#" class="student-name-link">${escapeHtml(s.name)}</a></td>
             <td>${escapeHtml(classMap[s.classId] || s.classId)}</td>
             <td>${s.gender === "F" ? "여" : "남"}</td>
             <td><span class="badge badge-${s.status}">${STUDENT_STATUS_LABEL[s.status] || s.status}</span></td>
@@ -88,6 +88,17 @@ async function renderStudentsTable() {
     </div>
   `;
 
+  // 이름을 누르면 사진/연락처/주소/보호자 정보 등을 한 번에 볼 수 있는 프로필 보기 모달이 뜸.
+  // (기존 "수정" 버튼은 그대로 두고, 이름 클릭은 별도의 읽기 전용 프로필 화면으로 연결)
+  wrap.querySelectorAll(".student-name-link").forEach(link => {
+    link.onclick = (e) => {
+      e.preventDefault();
+      const id = e.target.closest("tr").dataset.id;
+      const student = _studentsCache.find(s => s.id === id);
+      openStudentProfileModal(student);
+    };
+  });
+
   wrap.querySelectorAll(".editStudentBtn").forEach(btn => {
     btn.onclick = (e) => {
       const id = e.target.closest("tr").dataset.id;
@@ -97,13 +108,133 @@ async function renderStudentsTable() {
   });
 }
 
+// 재적부에서 학생 이름을 클릭했을 때 뜨는 읽기 전용 프로필 화면.
+// 사진 + 기본정보 + 주소 + 보호자 연락처 + 세례여부/장학금 + 비고를 한 번에 확인할 수 있음.
+function openStudentProfileModal(student) {
+  const classes = getClassesCache();
+  const className = classes.find(c => c.id === student.classId)?.name || student.classId;
+  const guardians = student.guardians || [];
+
+  openModal(`
+    <div class="profile-header">
+      ${student.photoDataUrl
+        ? `<img class="profile-photo" src="${student.photoDataUrl}" />`
+        : `<div class="profile-photo profile-photo-placeholder">👤</div>`}
+      <div>
+        <h3 style="margin:0 0 4px;">${escapeHtml(student.name)}</h3>
+        <p style="margin:0;color:#6b7280;font-size:13.5px;">
+          ${escapeHtml(className)} · ${student.gender === "F" ? "여" : "남"} ·
+          <span class="badge badge-${student.status}">${STUDENT_STATUS_LABEL[student.status] || student.status}</span>
+        </p>
+      </div>
+    </div>
+
+    <div class="profile-section">
+      <div class="profile-field-row"><span class="profile-field-label">전화번호</span><span class="profile-field-value">${escapeHtml(student.phone || "-")}</span></div>
+      <div class="profile-field-row"><span class="profile-field-label">학교</span><span class="profile-field-value">${escapeHtml(student.school || "-")}</span></div>
+      <div class="profile-field-row"><span class="profile-field-label">생일</span><span class="profile-field-value">${escapeHtml(student.birthday || "-")}</span></div>
+      <div class="profile-field-row"><span class="profile-field-label">주소</span><span class="profile-field-value">${escapeHtml(student.address || "-")}</span></div>
+      <div class="profile-field-row"><span class="profile-field-label">등록일</span><span class="profile-field-value">${escapeHtml(student.joinDate || "-")}</span></div>
+      <div class="profile-field-row"><span class="profile-field-label">세례여부</span><span class="profile-field-value">${escapeHtml(student.baptismStatus || "-")}</span></div>
+      <div class="profile-field-row"><span class="profile-field-label">장학금</span><span class="profile-field-value">${student.scholarship ? "수여" : "-"}</span></div>
+    </div>
+
+    <div class="profile-section">
+      <h4>보호자 연락처</h4>
+      ${guardians.length
+        ? guardians.map(g => `
+          <div class="profile-field-row">
+            <span class="profile-field-label">${escapeHtml(g.relation || "보호자")}</span>
+            <span class="profile-field-value">${escapeHtml(g.name || "-")}${g.phone ? ` · ${escapeHtml(g.phone)}` : ""}</span>
+          </div>
+        `).join("")
+        : `<p class="list empty" style="padding:2px 0;">등록된 보호자 연락처가 없습니다.</p>`}
+    </div>
+
+    ${student.note ? `
+      <div class="profile-section">
+        <h4>비고</h4>
+        <p style="white-space:pre-wrap;margin:0;font-size:13.5px;">${escapeHtml(student.note)}</p>
+      </div>
+    ` : ""}
+
+    <div class="modal-actions">
+      <button id="editFromProfileBtn" class="btn">정보 수정</button>
+      <button id="cancelBtn" class="btn btn-primary">닫기</button>
+    </div>
+  `, { wide: true });
+
+  $("#cancelBtn").onclick = closeModal;
+  $("#editFromProfileBtn").onclick = () => openStudentModal(student);
+}
+
+// 보호자 연락처 한 줄(관계/이름/전화번호) 입력 폼 HTML
+function guardianRowHtml(relation = "아버지", name = "", phone = "") {
+  const options = ["아버지", "어머니", "할아버지", "할머니", "기타"];
+  return `
+    <div class="guardian-row">
+      <select class="g_relation">
+        ${options.map(o => `<option value="${o}" ${o === relation ? "selected" : ""}>${o}</option>`).join("")}
+      </select>
+      <input class="g_name" placeholder="이름" value="${escapeHtml(name)}" />
+      <input class="g_phone" placeholder="전화번호" value="${escapeHtml(phone)}" />
+      <button type="button" class="btn btn-sm btn-danger g_remove">삭제</button>
+    </div>
+  `;
+}
+
+// 사진 파일을 최대 320px, JPEG 압축(quality 0.75)으로 축소해서 data URL 문자열로 변환.
+// Firestore 문서 1개당 용량 제한(1MiB)에 안전하게 들어가도록 하기 위해 원본을 그대로 저장하지 않고
+// 이렇게 축소함(보통 결과물이 수십 KB 수준). 별도의 Firebase Storage 설정 없이 학생 문서 안에 바로 저장됨.
+function resizeImageToDataUrl(file, maxSize = 320, quality = 0.75) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("파일을 읽을 수 없습니다."));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("이미지를 불러올 수 없습니다."));
+      img.onload = () => {
+        let { width, height } = img;
+        if (width >= height && width > maxSize) {
+          height = Math.round(height * (maxSize / width));
+          width = maxSize;
+        } else if (height > maxSize) {
+          width = Math.round(width * (maxSize / height));
+          height = maxSize;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function openStudentModal(student = null) {
   const classes = getClassesCache();
   const visible = isAdmin() ? classes : classes.filter(c => currentUser.classIds.includes(c.id));
   const isEdit = !!student;
 
+  let pendingPhotoDataUrl = null; // 사용자가 이번에 새로 고른 사진(아직 저장 전)
+  let photoRemoved = false; // "사진 제거"를 눌렀는지
+
   openModal(`
     <h3>${isEdit ? "학생 정보 수정" : "학생 추가"}</h3>
+
+    <label>프로필 사진</label>
+    <div class="photo-upload-row">
+      <img id="photoPreview" class="photo-preview ${student?.photoDataUrl ? "" : "hidden"}" src="${student?.photoDataUrl || ""}" />
+      <div id="photoPreviewPlaceholder" class="photo-preview photo-preview-placeholder ${student?.photoDataUrl ? "hidden" : ""}">👤</div>
+      <div>
+        <input type="file" id="f_photoFile" accept="image/*" />
+        <div><button type="button" id="removePhotoBtn" class="btn btn-sm" style="margin-top:6px;">사진 제거</button></div>
+      </div>
+    </div>
+
     <label>이름</label>
     <input id="f_name" value="${escapeHtml(student?.name || "")}" />
     <label>반</label>
@@ -124,6 +255,36 @@ function openStudentModal(student = null) {
     </select>
     <label>등록일</label>
     <input type="date" id="f_joinDate" value="${student?.joinDate || todayISO()}" />
+
+    <label>전화번호(학생)</label>
+    <input id="f_phone" value="${escapeHtml(student?.phone || "")}" placeholder="010-0000-0000" />
+    <label>학교명</label>
+    <input id="f_school" value="${escapeHtml(student?.school || "")}" placeholder="예: 지산중" />
+    <label>생일</label>
+    <input id="f_birthday" value="${escapeHtml(student?.birthday || "")}" placeholder="예: 2013-03-05 또는 3월 5일" />
+    <label>주소</label>
+    <input id="f_address" value="${escapeHtml(student?.address || "")}" />
+
+    <label>보호자 연락처</label>
+    <div id="guardianRows">
+      ${(student?.guardians?.length ? student.guardians : [{ relation: "아버지", name: "", phone: "" }])
+        .map(g => guardianRowHtml(g.relation, g.name, g.phone)).join("")}
+    </div>
+    <button type="button" id="addGuardianBtn" class="btn btn-sm">+ 보호자 추가</button>
+
+    <label>세례여부</label>
+    <select id="f_baptism">
+      <option value="" ${!student?.baptismStatus ? "selected" : ""}>선택 안 함</option>
+      <option value="학습" ${student?.baptismStatus === "학습" ? "selected" : ""}>학습</option>
+      <option value="유아세례" ${student?.baptismStatus === "유아세례" ? "selected" : ""}>유아세례</option>
+      <option value="입교" ${student?.baptismStatus === "입교" ? "selected" : ""}>입교</option>
+      <option value="세례" ${student?.baptismStatus === "세례" ? "selected" : ""}>세례</option>
+    </select>
+
+    <label style="display:flex;align-items:center;gap:6px;margin-top:14px;">
+      <input type="checkbox" id="f_scholarship" style="width:auto;" ${student?.scholarship ? "checked" : ""} /> 장학금 수여
+    </label>
+
     <label>비고</label>
     <textarea id="f_note" rows="2">${escapeHtml(student?.note || "")}</textarea>
     <div class="modal-actions">
@@ -131,9 +292,42 @@ function openStudentModal(student = null) {
       <button id="cancelBtn" class="btn">취소</button>
       <button id="saveBtn" class="btn btn-primary">저장</button>
     </div>
-  `);
+  `, { wide: true });
 
   $("#cancelBtn").onclick = closeModal;
+
+  $("#f_photoFile").onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const dataUrl = await resizeImageToDataUrl(file);
+      pendingPhotoDataUrl = dataUrl;
+      photoRemoved = false;
+      const preview = $("#photoPreview");
+      preview.src = dataUrl;
+      preview.classList.remove("hidden");
+      $("#photoPreviewPlaceholder").classList.add("hidden");
+    } catch (err) {
+      alert(`사진을 처리하는 중 오류가 발생했습니다: ${err.message || err}`);
+    }
+  };
+
+  $("#removePhotoBtn").onclick = () => {
+    pendingPhotoDataUrl = null;
+    photoRemoved = true;
+    $("#photoPreview").classList.add("hidden");
+    $("#photoPreviewPlaceholder").classList.remove("hidden");
+  };
+
+  $("#addGuardianBtn").onclick = () => {
+    $("#guardianRows").insertAdjacentHTML("beforeend", guardianRowHtml("아버지", "", ""));
+  };
+  // 동적으로 추가되는 행도 한 번에 처리되도록 컨테이너에 이벤트 위임
+  $("#guardianRows").addEventListener("click", (e) => {
+    if (e.target.classList.contains("g_remove")) {
+      e.target.closest(".guardian-row").remove();
+    }
+  });
 
   if (isEdit) {
     $("#deleteBtn").onclick = async () => {
@@ -152,14 +346,29 @@ function openStudentModal(student = null) {
   }
 
   $("#saveBtn").onclick = async () => {
+    const guardians = $all(".guardian-row", $("#guardianRows")).map(row => ({
+      relation: row.querySelector(".g_relation").value,
+      name: row.querySelector(".g_name").value.trim(),
+      phone: row.querySelector(".g_phone").value.trim()
+    })).filter(g => g.name || g.phone); // 이름/전화번호 둘 다 비어있는 빈 줄은 저장하지 않음
+
     const payload = {
       name: $("#f_name").value.trim(),
       classId: $("#f_classId").value,
       gender: $("#f_gender").value,
       status: $("#f_status").value,
       joinDate: $("#f_joinDate").value,
+      phone: $("#f_phone").value.trim(),
+      school: $("#f_school").value.trim(),
+      birthday: $("#f_birthday").value.trim(),
+      address: $("#f_address").value.trim(),
+      guardians,
+      baptismStatus: $("#f_baptism").value,
+      scholarship: $("#f_scholarship").checked,
       note: $("#f_note").value.trim(),
-      order: student?.order ?? Date.now()
+      order: student?.order ?? Date.now(),
+      // 사진: "제거"를 눌렀으면 빈 문자열로, 새로 골랐으면 그 값으로, 안 건드렸으면 기존 값을 그대로 유지
+      photoDataUrl: photoRemoved ? "" : (pendingPhotoDataUrl || student?.photoDataUrl || "")
     };
     if (!payload.name) { alert("이름을 입력해주세요."); return; }
 

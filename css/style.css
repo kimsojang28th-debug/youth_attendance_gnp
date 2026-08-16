@@ -200,12 +200,43 @@ tr:hover td { background: #f8f9fd; }
   background: #fff; border-radius: var(--radius); padding: 22px 24px;
   width: 100%; max-width: 460px; max-height: 85vh; overflow: auto;
 }
+.modal-box.modal-wide { max-width: 640px; }
 .modal-box h3 { margin-top: 0; }
 .modal-box label { display: block; font-size: 13px; color: var(--text-muted); margin: 10px 0 4px; }
 .modal-box input, .modal-box select, .modal-box textarea {
   width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13.5px;
 }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+/* ---------- 재적부: 학생 프로필 보기 모달 ---------- */
+.student-name-link { color: var(--primary); text-decoration: none; font-weight: 600; cursor: pointer; }
+.student-name-link:hover { text-decoration: underline; }
+
+.profile-header { display: flex; gap: 16px; align-items: center; margin-bottom: 16px; }
+.profile-photo {
+  width: 84px; height: 84px; border-radius: 50%; object-fit: cover;
+  background: #eef1fd; flex-shrink: 0;
+}
+.profile-photo-placeholder { display: flex; align-items: center; justify-content: center; font-size: 36px; color: #adb5bd; }
+.profile-section { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
+.profile-section:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+.profile-section h4 { margin: 0 0 8px; font-size: 13.5px; color: var(--text-muted); }
+.profile-field-row { display: flex; gap: 10px; padding: 4px 0; font-size: 13.5px; }
+.profile-field-label { width: 88px; flex-shrink: 0; color: var(--text-muted); }
+.profile-field-value { color: var(--text); font-weight: 500; word-break: break-all; }
+
+/* ---------- 재적부: 학생 추가/수정 폼 - 사진 업로드 + 보호자 연락처 ---------- */
+.photo-upload-row { display: flex; align-items: center; gap: 12px; margin: 6px 0 14px; }
+.photo-preview {
+  width: 64px; height: 64px; border-radius: 50%; object-fit: cover;
+  background: #eef1fd; flex-shrink: 0;
+}
+.photo-preview-placeholder { display: flex; align-items: center; justify-content: center; font-size: 26px; color: #adb5bd; }
+.modal-box .photo-upload-row input[type="file"] { width: auto; padding: 4px 0; border: none; font-size: 12.5px; }
+
+.guardian-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
+.modal-box .guardian-row select { width: auto; flex: 0 0 92px; }
+.modal-box .guardian-row input { width: auto; flex: 1; min-width: 0; }
 
 /* ---------- 주간보고서: 학생 출결 요약 ---------- */
 .report-summary-box {
