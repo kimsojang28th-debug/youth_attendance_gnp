@@ -64,6 +64,13 @@ async function renderAttendanceTable() {
   const existing = await getAttendanceDoc(classId, date);
   _currentRecords = existing?.records ? { ...existing.records } : {};
   _currentNotes = existing?.notes ? { ...existing.notes } : {};
+  // 화면에는 체크 안 한 학생이 기본값 "X"로 보이지만, 실제로 저장은 클릭해서 값이 바뀐
+  // 학생만 되고 있었음 → 결석으로 둔(안 건드린) 학생은 records에 아예 기록이 안 남아서
+  // 연간출석부 등에서 "X"가 아니라 "-"(기록없음)로 보이는 문제가 있었음.
+  // 지금 반 재적 학생 전원에 대해 기본값을 명시적으로 채워서, 저장 시 항상 O/X가 남도록 함.
+  students.forEach(s => {
+    if (!(s.id in _currentRecords)) _currentRecords[s.id] = "X";
+  });
   _currentStudentCount = students.length;
 
   const wrap = $("#attendanceTableWrap");

@@ -233,9 +233,25 @@ tr:hover td { background: #f8f9fd; }
   padding: 5px 12px; border-bottom: 1px solid #f1f2f6;
   font-size: 12px; color: var(--text-muted);
 }
+.report-class-tally-line {
+  padding: 5px 12px; border-bottom: 1px solid #f1f2f6;
+  font-size: 12px; font-weight: 700; color: var(--primary);
+}
 .report-class-card-body { padding: 6px 12px; max-height: 260px; overflow-y: auto; }
 .report-student-row {
   display: flex; justify-content: space-between; align-items: center;
   padding: 5px 0; border-bottom: 1px solid #f1f2f6; font-size: 13px;
 }
 .report-student-row:last-child { border-bottom: none; }
+
+/* 출결사유/특이사항이 있는 학생의 O/X 배지는 진한 보라색으로, 클릭하면 팝업으로 내용 확인 (연간출석부와 동일) */
+.badge.badge-has-note { background: #efe9fc; color: #5f3dc4; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px; }
+
+/* ---------- 주간보고서: 읽기 전용(결과만 표시) 필드 ---------- */
+.report-readonly-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+.report-readonly-label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
+.report-readonly-value { display: block; font-size: 14.5px; font-weight: 600; color: var(--text); }
+.report-readonly-block { white-space: pre-wrap; line-height: 1.7; font-size: 14px; color: var(--text); margin: 0; min-height: 24px; }

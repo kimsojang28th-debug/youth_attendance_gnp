@@ -1,23 +1,24 @@
-import { db, doc, getDoc, setDoc, serverTimestamp } from "./firebase-init.js";
+import { db, doc, getDoc } from "./firebase-init.js";
 import { loadClasses, getClassesCache, getClassById } from "./classes.js";
 import { loadStudents, getStudentsCache } from "./students.js";
 import { getAttendanceDoc } from "./attendance.js";
 import {
-  $, escapeHtml, nearestSundayISO, sortByName, toast,
-  yearSelectOptionsHtml, sundayOptionsHtmlForYear, getSundaysOfYear
+  $, escapeHtml, nearestSundayISO, sortByName,
+  yearSelectOptionsHtml, sundayOptionsHtmlForYear, getSundaysOfYear,
+  openModal, closeModal
 } from "./utils.js";
-import { currentUser } from "./auth.js";
+
+// "주간보고서" 화면: 예배정보입력(js/worship.js)에서 입력한 내용 + 출석체크 결과를
+// 모아서 보여주기만 하는 읽기 전용 화면. (입력은 예배정보입력 화면에서, 반별 출석 결과는
+// 출석체크 화면에서 각각 입력하고, 여기서는 결과만 확인)
 
 export async function initReportView() {
   await loadClasses();
   await loadStudents();
-
-  // 연도를 먼저 고르고 그 연도의 주일만 보이도록 함 (기본값: 올해)
+  const dateSelect = $("#reportDate");
   const thisYear = new Date().getFullYear();
   const yearSelect = $("#reportYearSelect");
   yearSelect.innerHTML = yearSelectOptionsHtml(thisYear);
-
-  const dateSelect = $("#reportDate");
   dateSelect.innerHTML = sundayOptionsHtmlForYear(thisYear, nearestSundayISO());
 
   yearSelect.onchange = () => {
@@ -35,7 +36,7 @@ async function getWeeklyMeta(date) {
   return snap.exists() ? snap.data() : {};
 }
 
-// 반별 학생 명단(가나다순) + 그 주 출결(O/X)을 함께 담아 반환
+// 반별 학생 명단(가나다순) + 그 주 출결(O/X) + 출결사유/특이사항을 함께 담아 반환
 export async function buildAttendanceDetail(date) {
   const classes = getClassesCache();
   const students = getStudentsCache();
@@ -49,11 +50,13 @@ export async function buildAttendanceDetail(date) {
     );
     const attDoc = await getAttendanceDoc(c.id, date);
     const records = attDoc?.records || {};
+    const notes = attDoc?.notes || {};
     const studentRows = classStudents.map(s => ({
       id: s.id,
       name: s.name,
       isNew: s.status === "new",
-      val: records[s.id] === "O" ? "O" : "X"
+      val: records[s.id] === "O" ? "O" : "X",
+      note: notes[s.id] || ""
     }));
     const present = studentRows.filter(s => s.val === "O").length;
     const roster = studentRows.length;
@@ -101,36 +104,33 @@ async function renderReport() {
   $("#reportBody").innerHTML = `
     <div class="panel">
       <h3>설교 및 예배 정보</h3>
-      <div class="card-grid">
-        <div><label>설교 본문</label><input id="m_sermonText" value="${escapeHtml(meta.sermonText || "")}" /></div>
-        <div><label>설교 제목</label><input id="m_sermonTitle" value="${escapeHtml(meta.sermonTitle || "")}" /></div>
-        <div><label>설교자</label><input id="m_preacher" value="${escapeHtml(meta.preacher || "")}" /></div>
+      <div class="report-readonly-grid">
+        <div><span class="report-readonly-label">설교 본문</span><span class="report-readonly-value">${escapeHtml(meta.sermonText || "-")}</span></div>
+        <div><span class="report-readonly-label">설교 제목</span><span class="report-readonly-value">${escapeHtml(meta.sermonTitle || "-")}</span></div>
+        <div><span class="report-readonly-label">설교자</span><span class="report-readonly-value">${escapeHtml(meta.preacher || "-")}</span></div>
       </div>
     </div>
 
     <div class="panel">
       <h3>헌금 내역</h3>
-      <div class="card-grid">
-        <div><label>주일헌금</label><input type="number" id="m_off_weekly" value="${offering.weekly || 0}" /></div>
-        <div><label>십일조</label><input type="number" id="m_off_tithe" value="${offering.tithe || 0}" /></div>
-        <div><label>감사헌금</label><input type="number" id="m_off_thanks" value="${offering.thanks || 0}" /></div>
-        <div><label>기타(절기 등)</label><input type="number" id="m_off_other" value="${offering.other || 0}" /></div>
+      <div class="report-readonly-grid">
+        <div><span class="report-readonly-label">주일헌금</span><span class="report-readonly-value">₩${(offering.weekly || 0).toLocaleString()}</span></div>
+        <div><span class="report-readonly-label">십일조</span><span class="report-readonly-value">₩${(offering.tithe || 0).toLocaleString()}</span></div>
+        <div><span class="report-readonly-label">감사헌금</span><span class="report-readonly-value">₩${(offering.thanks || 0).toLocaleString()}</span></div>
+        <div><span class="report-readonly-label">기타(절기 등)</span><span class="report-readonly-value">₩${(offering.other || 0).toLocaleString()}</span></div>
       </div>
       <p style="margin-top:10px;font-weight:700;">합계: ₩${offeringTotal.toLocaleString()}</p>
     </div>
 
     <div class="panel">
       <h3>주간심방 및 기도제목 / 건의사항</h3>
-      <textarea id="m_visitationNotes" rows="3">${escapeHtml(meta.visitationNotes || "")}</textarea>
+      <p class="report-readonly-block">${escapeHtml(meta.visitationNotes || "") || `<span class="dim-note">입력된 내용이 없습니다.</span>`}</p>
     </div>
 
     <div class="panel">
       <h3>실시 및 예정 사항</h3>
-      <textarea id="m_scheduleNotes" rows="3">${escapeHtml(meta.scheduleNotes || "")}</textarea>
+      <p class="report-readonly-block">${escapeHtml(meta.scheduleNotes || "") || `<span class="dim-note">입력된 내용이 없습니다.</span>`}</p>
     </div>
-
-    <button id="saveMetaBtn" class="btn btn-primary">주간보고서 저장</button>
-    <p id="reportSaveMsg" class="save-msg"></p>
 
     <div class="panel" style="margin-top:20px;">
       <h3>학생 출결 사항</h3>
@@ -156,13 +156,21 @@ async function renderReport() {
             <div class="report-class-teacher-line">
               ${teacherNames.length ? `담당: ${escapeHtml(teacherNames.join(", "))}` : `담당 선생님 미배정`}
             </div>
+            <div class="report-class-tally-line">
+              재적 ${d.roster}명 · 출석 ${d.present}명 · 결석 ${d.roster - d.present}명
+            </div>
             <div class="report-class-card-body">
-              ${d.students.length ? d.students.map(s => `
+              ${d.students.length ? d.students.map(s => {
+                const hasNote = !!(s.note && s.note.trim());
+                return `
                 <div class="report-student-row">
                   <span>${escapeHtml(s.name)}${s.isNew ? ' <span class="badge badge-new" style="padding:1px 6px;font-size:10px;">새</span>' : ""}</span>
-                  <span class="badge badge-${s.val === "O" ? "o" : "x"}">${s.val}</span>
+                  <span class="badge badge-${s.val === "O" ? "o" : "x"} ${hasNote ? "badge-has-note" : ""}"
+                    ${hasNote ? `data-name="${escapeHtml(s.name)}" data-note="${escapeHtml(s.note)}"` : ""}
+                  >${s.val}</span>
                 </div>
-              `).join("") : `<p class="list empty" style="padding:4px 0;font-size:12.5px;">학생 없음</p>`}
+              `;
+              }).join("") : `<p class="list empty" style="padding:4px 0;font-size:12.5px;">학생 없음</p>`}
             </div>
           </div>
         `;
@@ -171,23 +179,17 @@ async function renderReport() {
     </div>
   `;
 
-  $("#saveMetaBtn").onclick = async () => {
-    await setDoc(doc(db, "weeklyMeta", date), {
-      date,
-      sermonText: $("#m_sermonText").value,
-      sermonTitle: $("#m_sermonTitle").value,
-      preacher: $("#m_preacher").value,
-      offering: {
-        weekly: Number($("#m_off_weekly").value) || 0,
-        tithe: Number($("#m_off_tithe").value) || 0,
-        thanks: Number($("#m_off_thanks").value) || 0,
-        other: Number($("#m_off_other").value) || 0
-      },
-      visitationNotes: $("#m_visitationNotes").value,
-      scheduleNotes: $("#m_scheduleNotes").value,
-      updatedBy: currentUser.uid,
-      updatedAt: serverTimestamp()
-    });
-    toast("주간보고서가 저장되었습니다.", $("#reportSaveMsg"));
-  };
+  $("#reportBody").querySelectorAll(".badge-has-note").forEach(badge => {
+    badge.onclick = () => {
+      openModal(`
+        <h3>출결 특이사항</h3>
+        <p style="font-size:13px;color:#6b7280;margin:0 0 10px;">${escapeHtml(badge.dataset.name)} · ${escapeHtml(date)}</p>
+        <p style="white-space:pre-wrap;line-height:1.6;">${escapeHtml(badge.dataset.note)}</p>
+        <div class="modal-actions">
+          <button id="cancelBtn" class="btn">닫기</button>
+        </div>
+      `);
+      $("#cancelBtn").onclick = closeModal;
+    };
+  });
 }

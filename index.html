@@ -61,6 +61,7 @@
       <button data-view="attendance" class="nav-btn">출석체크</button>
       <button data-view="students" class="nav-btn">재적부</button>
       <button data-view="classes" class="nav-btn">반 관리</button>
+      <button data-view="worship" class="nav-btn">예배정보입력</button>
       <button data-view="report" class="nav-btn">주간보고서</button>
       <button data-view="annual" class="nav-btn">연간출석부</button>
       <button data-view="stats" class="nav-btn">통계</button>
@@ -125,7 +126,20 @@
     <!-- 반 관리 -->
     <section id="view-classes" class="view hidden"></section>
 
-    <!-- 주간보고서 -->
+    <!-- 예배정보입력 -->
+    <section id="view-worship" class="view hidden">
+      <h2>예배정보입력</h2>
+      <div class="toolbar">
+        <label>연도</label>
+        <select id="worshipYearSelect"></select>
+        <label>주일 날짜</label>
+        <select id="worshipDate" class="sunday-select"></select>
+        <button id="loadWorshipBtn" class="btn">불러오기</button>
+      </div>
+      <div id="worshipBody"></div>
+    </section>
+
+    <!-- 주간보고서 (읽기 전용 결과 확인) -->
     <section id="view-report" class="view hidden">
       <h2>주간보고서</h2>
       <div class="toolbar">

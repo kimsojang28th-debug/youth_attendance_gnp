@@ -5,6 +5,7 @@ import { initDashboardView } from "./dashboard.js";
 import { initAttendanceView } from "./attendance.js";
 import { initStudentsView } from "./students.js";
 import { initReportView } from "./report.js";
+import { initWorshipView } from "./worship.js";
 import { initAnnualView } from "./annual.js";
 import { initStatsView } from "./stats.js";
 import { initHistoryView } from "./history.js";
@@ -15,6 +16,7 @@ const viewInitializers = {
   attendance: initAttendanceView,
   students: initStudentsView,
   classes: initClassesView,
+  worship: initWorshipView,
   report: initReportView,
   annual: initAnnualView,
   stats: initStatsView,

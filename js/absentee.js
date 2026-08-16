@@ -1,4 +1,4 @@
-import { db, collection, getDocs, query, where, orderBy, limit } from "./firebase-init.js";
+import { db, collection, getDocs, query, where } from "./firebase-init.js";
 import { getClassesCache } from "./classes.js";
 import { getStudentsCache } from "./students.js";
 import { nearestSundayISO } from "./utils.js";
@@ -6,18 +6,22 @@ import { nearestSundayISO } from "./utils.js";
 const LOOKBACK_WEEKS = 15; // 최대 이만큼 과거까지 조회해서 연속결석 주수를 계산
 const ALERT_THRESHOLD = 3; // 이 주수 이상 연속 결석하면 대시보드에 경고 표시
 
-// classId 하나에 대해 최근 LOOKBACK_WEEKS 개의 출석 기록을 최신순으로 가져옴
+// classId 하나에 대해 최근 LOOKBACK_WEEKS 개의 출석 기록을 최신순으로 가져옴.
+// (예전엔 orderBy+limit을 Firestore 쿼리에 그대로 걸었는데, 이 조합은 연간출석부(classId==+date범위)와는
+// 다른 별도의 복합 색인이 필요해서, 그 색인이 없으면 조용히 실패해 장기결석 학생이 0명으로 보이는 버그가 있었음.
+// 연간출석부와 동일하게 "classId== + date<=" 만 서버에 걸고, 최신순 정렬/개수 제한은 결과를 받은 뒤
+// 자바스크립트에서 처리하도록 바꿔서 별도 색인이 필요 없게 함.)
 async function fetchRecentAttendance(classId, beforeOrEqualDate) {
   const q = query(
     collection(db, "attendance"),
     where("classId", "==", classId),
-    where("date", "<=", beforeOrEqualDate),
-    orderBy("date", "desc"),
-    limit(LOOKBACK_WEEKS)
+    where("date", "<=", beforeOrEqualDate)
   );
   const snap = await getDocs(q);
-  // 오래된 -> 최신 순으로 정렬 반환은 최신 -> 오래된 유지 (계산 편의상)
-  return snap.docs.map(d => d.data());
+  return snap.docs
+    .map(d => d.data())
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)) // 최신 날짜부터
+    .slice(0, LOOKBACK_WEEKS);
 }
 
 // 연속 결석 주수 계산: 가장 최근 기록부터 역순으로 훑으며 X(또는 미기록)가 이어지는 구간 카운트
@@ -36,6 +40,7 @@ export async function computeLongTermAbsentees(visibleClassIds = null) {
   const students = getStudentsCache().filter(s => s.status === "active" || s.status === "new");
   const asOf = nearestSundayISO();
   const results = [];
+  let indexError = null; // 반 하나라도 조회 실패하면 원인(대개 Firestore 색인 문제)을 화면에 보여주기 위해 보관
 
   for (const c of classes) {
     let attDocs;
@@ -43,6 +48,7 @@ export async function computeLongTermAbsentees(visibleClassIds = null) {
       attDocs = await fetchRecentAttendance(c.id, asOf);
     } catch (err) {
       console.warn("출석 조회 실패 (Firestore 색인이 필요할 수 있습니다):", err);
+      if (!indexError) indexError = err;
       continue;
     }
     if (!attDocs.length) continue;
@@ -57,7 +63,7 @@ export async function computeLongTermAbsentees(visibleClassIds = null) {
   }
 
   results.sort((a, b) => b.weeks - a.weeks);
-  return results;
+  return { results, indexError };
 }
 
 export { ALERT_THRESHOLD };

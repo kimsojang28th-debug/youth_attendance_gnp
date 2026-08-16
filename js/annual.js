@@ -50,10 +50,12 @@ async function renderAnnualTable() {
   }
   const byDate = {};
   const byDateNotes = {};
+  const byDateExists = new Set(); // 그 날짜에 출석 기록 자체가 존재하는지 (미체크 학생을 "-" 대신 "X"로 보여주기 위함)
   snap.docs.forEach(d => {
     const data = d.data();
     byDate[data.date] = data.records || {};
     byDateNotes[data.date] = data.notes || {};
+    byDateExists.add(data.date);
   });
 
   if (!students.length) {
@@ -64,7 +66,10 @@ async function renderAnnualTable() {
   const rowsHtml = students.map(s => {
     let total = 0;
     const cells = sundays.map(date => {
-      const val = byDate[date]?.[s.id];
+      // 그 날짜에 출석 기록 자체는 있는데 이 학생 값만 없는 경우(과거 데이터에 있을 수 있음)는
+      // 결석(X)으로 간주. 그 날짜에 출석 기록 자체가 아예 없으면(예배가 없었거나 아직 체크 안 함) "-".
+      const rawVal = byDate[date]?.[s.id];
+      const val = rawVal || (byDateExists.has(date) ? "X" : undefined);
       const note = byDateNotes[date]?.[s.id];
       const hasNote = !!(note && note.trim());
       if (val === "O") total++;

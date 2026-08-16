@@ -2,7 +2,7 @@ import { loadClasses, getClassesCache } from "./classes.js";
 import { loadStudents, getStudentsCache } from "./students.js";
 import { computeLongTermAbsentees, ALERT_THRESHOLD } from "./absentee.js";
 import { buildAttendanceDetail } from "./report.js";
-import { $, escapeHtml, nearestSundayISO } from "./utils.js";
+import { $, escapeHtml, nearestSundayISO, friendlyFirestoreError } from "./utils.js";
 import { isAdmin, currentUser } from "./auth.js";
 
 export async function initDashboardView() {
@@ -38,9 +38,11 @@ export async function initDashboardView() {
     <div class="stat-card"><div class="label">이번 주 출석률</div><div class="value">${rowsTotal.roster ? Math.round((rowsTotal.present / rowsTotal.roster) * 1000) / 10 : 0}%</div></div>
   `;
 
-  const absentees = await computeLongTermAbsentees(visibleIds);
+  const { results: absentees, indexError } = await computeLongTermAbsentees(visibleIds);
   const absenteeWrap = $("#absenteeList");
-  if (!absentees.length) {
+  if (indexError) {
+    absenteeWrap.innerHTML = `<p class="list empty" style="color:#e03131;line-height:1.6;">${friendlyFirestoreError(indexError)}</p>`;
+  } else if (!absentees.length) {
     absenteeWrap.innerHTML = `<p class="list empty">${ALERT_THRESHOLD}주 이상 연속 결석한 학생이 없습니다. 👍</p>`;
   } else {
     absenteeWrap.innerHTML = absentees.map(a => `
