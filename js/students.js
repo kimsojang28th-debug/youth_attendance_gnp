@@ -234,6 +234,7 @@ function openStudentModal(student = null) {
         <div><button type="button" id="removePhotoBtn" class="btn btn-sm" style="margin-top:6px;">사진 제거</button></div>
       </div>
     </div>
+    <p style="font-size:12px;color:#868e96;margin:-4px 0 12px;">다른 곳에서 이미지를 복사한 뒤, 이 창 안에서 Ctrl+V(붙여넣기)로도 등록할 수 있습니다.</p>
 
     <label>이름</label>
     <input id="f_name" value="${escapeHtml(student?.name || "")}" />
@@ -261,7 +262,7 @@ function openStudentModal(student = null) {
     <label>학교명</label>
     <input id="f_school" value="${escapeHtml(student?.school || "")}" placeholder="예: 지산중" />
     <label>생일</label>
-    <input id="f_birthday" value="${escapeHtml(student?.birthday || "")}" placeholder="예: 2013-03-05 또는 3월 5일" />
+    <input type="date" id="f_birthday" value="${student?.birthday || ""}" />
     <label>주소</label>
     <input id="f_address" value="${escapeHtml(student?.address || "")}" />
 
@@ -296,9 +297,8 @@ function openStudentModal(student = null) {
 
   $("#cancelBtn").onclick = closeModal;
 
-  $("#f_photoFile").onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  // 파일 선택이든, 클립보드 붙여넣기든 동일하게 축소/미리보기 처리를 하기 위한 공용 함수
+  async function setPhotoFromFile(file) {
     try {
       const dataUrl = await resizeImageToDataUrl(file);
       pendingPhotoDataUrl = dataUrl;
@@ -310,7 +310,29 @@ function openStudentModal(student = null) {
     } catch (err) {
       alert(`사진을 처리하는 중 오류가 발생했습니다: ${err.message || err}`);
     }
+  }
+
+  $("#f_photoFile").onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    await setPhotoFromFile(file);
   };
+
+  // 클립보드에 이미지가 복사되어 있을 때 Ctrl+V로 바로 등록. 이 모달이 열려있는 동안만 동작하도록,
+  // 모달을 새로 열 때마다 이전에 등록된 리스너는 지우고 새로 등록함(중복 실행 방지).
+  if (window._studentPhotoPasteHandler) {
+    document.removeEventListener("paste", window._studentPhotoPasteHandler);
+  }
+  window._studentPhotoPasteHandler = async (e) => {
+    if (!$("#f_photoFile")) return; // 이 모달이 이미 닫혔으면 무시
+    const items = e.clipboardData?.items || [];
+    const imageItem = Array.from(items).find(it => it.type.startsWith("image/"));
+    if (!imageItem) return; // 복사한 게 이미지가 아니면(텍스트 등) 평소대로 붙여넣기 진행
+    e.preventDefault();
+    const file = imageItem.getAsFile();
+    if (file) await setPhotoFromFile(file);
+  };
+  document.addEventListener("paste", window._studentPhotoPasteHandler);
 
   $("#removePhotoBtn").onclick = () => {
     pendingPhotoDataUrl = null;
