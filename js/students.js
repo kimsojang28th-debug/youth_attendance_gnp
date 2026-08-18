@@ -494,7 +494,7 @@ const CSV_STATUS_MAP = {
 // CSV 일괄등록 열 순서. 앞의 3개(이름/반이름/성별)만 필수이고 나머지는 전부 생략 가능
 // (생략된 열은 빈 값으로 등록됨) — 한 줄에 이 열 개수보다 적게만 채워서 붙여넣어도 정상 동작함.
 const BULK_IMPORT_COLUMNS = [
-  "이름", "반이름", "성별", "상태", "전화번호", "학교명", "생일", "주소",
+  "이름", "반이름", "성별", "상태", "등록일", "전화번호", "학교명", "생일", "주소",
   "보호자1관계", "보호자1이름", "보호자1전화", "보호자2관계", "보호자2이름", "보호자2전화", "비고"
 ];
 
@@ -506,8 +506,8 @@ function openBulkImportModal(visibleClasses) {
       구글시트/엑셀에서 여러 열을 그대로 복사해서 붙여넣어도 됩니다. (쉼표 또는 탭 구분 모두 지원, 주소 등에 쉼표가 들어있으면 탭 구분으로 붙여넣어주세요)<br/>
       <code>${BULK_IMPORT_COLUMNS.join(", ")}</code><br/>
       상태 열은 생략 가능하며, 생략 시 "재적"으로 등록됩니다. 새친구로 등록하려면 상태 칸에 "새친구"라고 적어주세요.<br/>
-      생일은 <code>YYYY-MM-DD</code> 형식으로 넣어주세요 (예: 2013-03-05).<br/>
-      예) <code>정현우,중1,남,재적,010-1234-5678,광성중,2013-03-05,한빛마을 5단지,아버지,정광수,,어머니,김회선,010-4226-4639,</code>
+      등록일/생일은 모두 <code>YYYY-MM-DD</code> 형식으로 넣어주세요 (예: 2026-01-01). 등록일을 비워두면 오늘 날짜로 등록됩니다.<br/>
+      예) <code>정현우,중1,남,재적,2026-01-01,010-1234-5678,광성중,2013-03-05,한빛마을 5단지,아버지,정광수,,어머니,김회선,010-4226-4639,</code>
     </p>
     <label>반 이름 매핑 참고</label>
     <p style="font-size:12px;color:#868e96;">${visibleClasses.map(c => c.name).join(", ")}</p>
@@ -531,14 +531,15 @@ function openBulkImportModal(visibleClasses) {
     for (const line of lines) {
       const parts = parseDelimitedLine(line).map(p => p.trim());
       const [
-        name, className, genderRaw, statusRaw, phone, school, birthday, address,
+        name, className, genderRaw, statusRaw, joinDateRaw, phone, school, birthday, address,
         g1relation, g1name, g1phone, g2relation, g2name, g2phone, note
       ] = parts;
       const classId = nameToClassId[className];
       if (!name || !classId) { fail++; failedLines.push(line); continue; }
       const gender = (genderRaw === "여" || genderRaw === "F") ? "F" : "M";
       const status = CSV_STATUS_MAP[statusRaw] || "active";
-      const joinDate = todayISO();
+      // 등록일을 직접 지정하지 않았거나 형식이 이상하면(YYYY-MM-DD가 아니면) 오늘 날짜로 대체
+      const joinDate = /^\d{4}-\d{2}-\d{2}$/.test(joinDateRaw || "") ? joinDateRaw : todayISO();
       // 보호자는 이름 또는 전화번호 중 하나라도 있으면 한 명으로 인정 (관계를 안 적었으면 순서대로 아버지/어머니로 기본 지정)
       const guardians = [];
       if (g1name || g1phone) guardians.push({ relation: g1relation || "아버지", name: g1name || "", phone: g1phone || "" });
