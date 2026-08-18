@@ -203,14 +203,30 @@ function guardianRowHtml(relation = "아버지", name = "", phone = "") {
 // 장학금은 1년에 상반기/하반기 두 번 수여되고 여러 번 받을 수 있으므로, 단순 체크(수여 여부)가 아니라
 // "언제 받았는지" 시기별로 다중 선택할 수 있게 함. 2023년부터 올해까지 자동으로 목록을 만들어서
 // 해가 바뀌어도 매번 코드를 손대지 않고 최신 연도까지 항목이 늘어나도록 함.
-function scholarshipPeriodOptions() {
+// 다만 매년 항목이 계속 늘어나면 화면이 한없이 길어지므로, 최근 2개년(올해+작년)만 기본으로 펼쳐 보여주고
+// 그보다 이전 연도는 "이전 연도 보기"를 눌러야 펼쳐지는 접이식 영역에 넣어 화면 길이를 일정하게 유지한다.
+function scholarshipYearGroups() {
   const startYear = 2023;
   const thisYear = new Date().getFullYear();
+  const allYears = [];
+  for (let y = startYear; y <= thisYear; y++) allYears.push(y);
+  const recentYears = allYears.slice(-2);
+  const olderYears = allYears.slice(0, -2);
+  return { recentYears, olderYears };
+}
+
+function periodsForYears(years) {
   const periods = [];
-  for (let y = startYear; y <= thisYear; y++) {
-    periods.push(`${y}년상반기`, `${y}년하반기`);
-  }
+  years.forEach(y => periods.push(`${y}년상반기`, `${y}년하반기`));
   return periods;
+}
+
+function scholarshipCheckboxesHtml(periods, selected) {
+  return periods.map(p => `
+    <label class="scholarship-chip">
+      <input type="checkbox" class="f_scholarship_period" value="${p}" ${selected.includes(p) ? "checked" : ""} /> ${p}
+    </label>
+  `).join("");
 }
 
 // 사진 파일을 최대 320px, JPEG 압축(quality 0.75)으로 축소해서 data URL 문자열로 변환.
@@ -251,6 +267,11 @@ function openStudentModal(student = null) {
 
   let pendingPhotoDataUrl = null; // 사용자가 이번에 새로 고른 사진(아직 저장 전)
   let photoRemoved = false; // "사진 제거"를 눌렀는지
+
+  const selectedScholarships = student?.scholarships || [];
+  const { recentYears, olderYears } = scholarshipYearGroups();
+  const olderPeriods = periodsForYears(olderYears);
+  const hasOlderChecked = olderPeriods.some(p => selectedScholarships.includes(p));
 
   openModal(`
     <h3>${isEdit ? "학생 정보 수정" : "학생 추가"}</h3>
@@ -315,12 +336,18 @@ function openStudentModal(student = null) {
     </select>
 
     <label style="margin-top:14px;">장학금 수여 시기 (받은 시기를 모두 체크)</label>
-    <div class="scholarship-grid" id="scholarshipGrid">
-      ${scholarshipPeriodOptions().map(p => `
-        <label class="scholarship-chip">
-          <input type="checkbox" class="f_scholarship_period" value="${p}" ${(student?.scholarships || []).includes(p) ? "checked" : ""} /> ${p}
-        </label>
-      `).join("")}
+    <div id="scholarshipSection">
+      <div class="scholarship-grid">
+        ${scholarshipCheckboxesHtml(periodsForYears(recentYears), selectedScholarships)}
+      </div>
+      ${olderYears.length ? `
+        <details class="scholarship-older" ${hasOlderChecked ? "open" : ""}>
+          <summary>이전 연도 보기 (${olderYears[0]}년~${olderYears[olderYears.length - 1]}년)</summary>
+          <div class="scholarship-grid scholarship-grid-older">
+            ${scholarshipCheckboxesHtml(olderPeriods, selectedScholarships)}
+          </div>
+        </details>
+      ` : ""}
     </div>
 
     <label>비고</label>
@@ -428,7 +455,7 @@ function openStudentModal(student = null) {
       address: $("#f_address").value.trim(),
       guardians,
       baptismStatus: $("#f_baptism").value,
-      scholarships: $all(".f_scholarship_period", $("#scholarshipGrid")).filter(cb => cb.checked).map(cb => cb.value),
+      scholarships: $all(".f_scholarship_period", $("#scholarshipSection")).filter(cb => cb.checked).map(cb => cb.value),
       note: $("#f_note").value.trim(),
       order: student?.order ?? Date.now(),
       // 사진: "제거"를 눌렀으면 빈 문자열로, 새로 골랐으면 그 값으로, 안 건드렸으면 기존 값을 그대로 유지
