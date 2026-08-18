@@ -7,6 +7,7 @@ import {
 } from "./utils.js";
 import { isAdmin, currentUser } from "./auth.js";
 import { addHistoryRecord, deleteHistoryForStudent } from "./history.js";
+import { requestAnnualClass } from "./annual.js";
 
 let _studentsCache = [];
 
@@ -74,7 +75,14 @@ async function renderStudentsTable() {
       <tbody>
         ${list.map(s => `
           <tr data-id="${s.id}">
-            <td><a href="#" class="student-name-link">${escapeHtml(s.name)}</a></td>
+            <td>
+              <span class="student-name-cell">
+                ${s.photoDataUrl
+                  ? `<img class="student-thumb" src="${s.photoDataUrl}" alt="" />`
+                  : `<span class="student-thumb student-thumb-placeholder">👤</span>`}
+                <a href="#" class="student-name-link">${escapeHtml(s.name)}</a>
+              </span>
+            </td>
             <td>${escapeHtml(classMap[s.classId] || s.classId)}</td>
             <td>${s.gender === "F" ? "여" : "남"}</td>
             <td><span class="badge badge-${s.status}">${STUDENT_STATUS_LABEL[s.status] || s.status}</span></td>
@@ -110,7 +118,7 @@ async function renderStudentsTable() {
 
 // 재적부에서 학생 이름을 클릭했을 때 뜨는 읽기 전용 프로필 화면.
 // 사진 + 기본정보 + 주소 + 보호자 연락처 + 세례여부/장학금 + 비고를 한 번에 확인할 수 있음.
-function openStudentProfileModal(student) {
+export function openStudentProfileModal(student) {
   const classes = getClassesCache();
   const className = classes.find(c => c.id === student.classId)?.name || student.classId;
   const guardians = student.guardians || [];
@@ -136,7 +144,7 @@ function openStudentProfileModal(student) {
       <div class="profile-field-row"><span class="profile-field-label">주소</span><span class="profile-field-value">${escapeHtml(student.address || "-")}</span></div>
       <div class="profile-field-row"><span class="profile-field-label">등록일</span><span class="profile-field-value">${escapeHtml(student.joinDate || "-")}</span></div>
       <div class="profile-field-row"><span class="profile-field-label">세례여부</span><span class="profile-field-value">${escapeHtml(student.baptismStatus || "-")}</span></div>
-      <div class="profile-field-row"><span class="profile-field-label">장학금</span><span class="profile-field-value">${student.scholarship ? "수여" : "-"}</span></div>
+      <div class="profile-field-row"><span class="profile-field-label">장학금</span><span class="profile-field-value">${(student.scholarships && student.scholarships.length) ? escapeHtml(student.scholarships.join(", ")) : "-"}</span></div>
     </div>
 
     <div class="profile-section">
@@ -160,12 +168,21 @@ function openStudentProfileModal(student) {
 
     <div class="modal-actions">
       <button id="editFromProfileBtn" class="btn">정보 수정</button>
-      <button id="cancelBtn" class="btn btn-primary">닫기</button>
+      <button id="cancelBtn" class="btn">닫기</button>
+      <button id="viewAttendanceBtn" class="btn btn-primary">출석현황</button>
     </div>
   `, { wide: true });
 
   $("#cancelBtn").onclick = closeModal;
   $("#editFromProfileBtn").onclick = () => openStudentModal(student);
+  // 이 학생이 속한 반의 연간출석부로 바로 이동. annual.js에 "다음에 열릴 때 이 반을 선택해달라"고
+  // 미리 요청해두고(requestAnnualClass), 실제 화면 전환은 상단 메뉴의 "연간출석부" 버튼을 그대로 클릭해서 처리함
+  // (app.js의 뷰 전환 로직을 그대로 재사용하기 위함 - 새로 만들지 않음).
+  $("#viewAttendanceBtn").onclick = () => {
+    requestAnnualClass(student.classId);
+    closeModal();
+    document.querySelector('.nav-btn[data-view="annual"]')?.click();
+  };
 }
 
 // 보호자 연락처 한 줄(관계/이름/전화번호) 입력 폼 HTML
@@ -181,6 +198,19 @@ function guardianRowHtml(relation = "아버지", name = "", phone = "") {
       <button type="button" class="btn btn-sm btn-danger g_remove">삭제</button>
     </div>
   `;
+}
+
+// 장학금은 1년에 상반기/하반기 두 번 수여되고 여러 번 받을 수 있으므로, 단순 체크(수여 여부)가 아니라
+// "언제 받았는지" 시기별로 다중 선택할 수 있게 함. 2023년부터 올해까지 자동으로 목록을 만들어서
+// 해가 바뀌어도 매번 코드를 손대지 않고 최신 연도까지 항목이 늘어나도록 함.
+function scholarshipPeriodOptions() {
+  const startYear = 2023;
+  const thisYear = new Date().getFullYear();
+  const periods = [];
+  for (let y = startYear; y <= thisYear; y++) {
+    periods.push(`${y}년상반기`, `${y}년하반기`);
+  }
+  return periods;
 }
 
 // 사진 파일을 최대 320px, JPEG 압축(quality 0.75)으로 축소해서 data URL 문자열로 변환.
@@ -227,14 +257,16 @@ function openStudentModal(student = null) {
 
     <label>프로필 사진</label>
     <div class="photo-upload-row">
-      <img id="photoPreview" class="photo-preview ${student?.photoDataUrl ? "" : "hidden"}" src="${student?.photoDataUrl || ""}" />
-      <div id="photoPreviewPlaceholder" class="photo-preview photo-preview-placeholder ${student?.photoDataUrl ? "hidden" : ""}">👤</div>
+      <div id="photoDropZone" class="photo-drop-zone" tabindex="0" title="클릭한 뒤 Ctrl+V를 누르면 복사한 이미지를 붙여넣을 수 있습니다">
+        <img id="photoPreview" class="photo-preview ${student?.photoDataUrl ? "" : "hidden"}" src="${student?.photoDataUrl || ""}" />
+        <div id="photoPreviewPlaceholder" class="photo-preview photo-preview-placeholder ${student?.photoDataUrl ? "hidden" : ""}">👤</div>
+      </div>
       <div>
         <input type="file" id="f_photoFile" accept="image/*" />
         <div><button type="button" id="removePhotoBtn" class="btn btn-sm" style="margin-top:6px;">사진 제거</button></div>
       </div>
     </div>
-    <p style="font-size:12px;color:#868e96;margin:-4px 0 12px;">다른 곳에서 이미지를 복사한 뒤, 이 창 안에서 Ctrl+V(붙여넣기)로도 등록할 수 있습니다.</p>
+    <p style="font-size:12px;color:#868e96;margin:-4px 0 12px;">👆 위 동그란 사진 영역을 클릭한 뒤 Ctrl+V를 누르면, 다른 곳에서 복사해둔 이미지를 바로 붙여넣을 수 있습니다.</p>
 
     <label>이름</label>
     <input id="f_name" value="${escapeHtml(student?.name || "")}" />
@@ -282,9 +314,14 @@ function openStudentModal(student = null) {
       <option value="세례" ${student?.baptismStatus === "세례" ? "selected" : ""}>세례</option>
     </select>
 
-    <label style="display:flex;align-items:center;gap:6px;margin-top:14px;">
-      <input type="checkbox" id="f_scholarship" style="width:auto;" ${student?.scholarship ? "checked" : ""} /> 장학금 수여
-    </label>
+    <label style="margin-top:14px;">장학금 수여 시기 (받은 시기를 모두 체크)</label>
+    <div class="scholarship-grid" id="scholarshipGrid">
+      ${scholarshipPeriodOptions().map(p => `
+        <label class="scholarship-chip">
+          <input type="checkbox" class="f_scholarship_period" value="${p}" ${(student?.scholarships || []).includes(p) ? "checked" : ""} /> ${p}
+        </label>
+      `).join("")}
+    </div>
 
     <label>비고</label>
     <textarea id="f_note" rows="2">${escapeHtml(student?.note || "")}</textarea>
@@ -317,6 +354,11 @@ function openStudentModal(student = null) {
     if (!file) return;
     await setPhotoFromFile(file);
   };
+
+  // 동그란 사진 영역을 눌러도 실제로 뭔가 반응이 있어야 "여기다"라는 게 느껴지므로 포커스를 줌
+  // (붙여넣기 자체는 문서 전체에서 감지하므로 어디를 클릭해도 동작하지만, 이렇게 하면 사용자가
+  // "여기를 클릭하고 Ctrl+V" 흐름을 자연스럽게 따라오게 됨).
+  $("#photoDropZone").onclick = () => $("#photoDropZone").focus();
 
   // 클립보드에 이미지가 복사되어 있을 때 Ctrl+V로 바로 등록. 이 모달이 열려있는 동안만 동작하도록,
   // 모달을 새로 열 때마다 이전에 등록된 리스너는 지우고 새로 등록함(중복 실행 방지).
@@ -386,7 +428,7 @@ function openStudentModal(student = null) {
       address: $("#f_address").value.trim(),
       guardians,
       baptismStatus: $("#f_baptism").value,
-      scholarship: $("#f_scholarship").checked,
+      scholarships: $all(".f_scholarship_period", $("#scholarshipGrid")).filter(cb => cb.checked).map(cb => cb.value),
       note: $("#f_note").value.trim(),
       order: student?.order ?? Date.now(),
       // 사진: "제거"를 눌렀으면 빈 문자열로, 새로 골랐으면 그 값으로, 안 건드렸으면 기존 값을 그대로 유지

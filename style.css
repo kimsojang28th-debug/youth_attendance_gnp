@@ -1,0 +1,348 @@
+:root {
+  --primary: #3b5bdb;
+  --primary-dark: #2f4bb3;
+  --bg: #f5f6fa;
+  --card-bg: #ffffff;
+  --border: #e3e5ec;
+  --text: #1f2430;
+  --text-muted: #6b7280;
+  --danger: #e03131;
+  --danger-bg: #fff0f0;
+  --success: #2f9e44;
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.hidden { display: none !important; }
+
+/* ---------- 로그인 ---------- */
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #3b5bdb 0%, #6741d9 100%);
+  padding: 16px;
+}
+.login-box {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 36px 32px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+}
+.login-box h1 { margin: 0 0 4px; font-size: 22px; }
+.login-box .sub { margin: 0 0 20px; color: var(--text-muted); font-size: 14px; }
+.login-box label { display: block; font-size: 13px; margin: 12px 0 4px; color: var(--text-muted); }
+.login-box input {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+  border-radius: 8px; font-size: 14px;
+}
+.error-text { color: var(--danger); font-size: 13px; margin-top: 10px; min-height: 18px; }
+.admin-hint { margin-top: 18px; font-size: 12px; color: var(--text-muted); }
+.admin-hint summary { cursor: pointer; }
+
+/* ---------- 버튼 ---------- */
+.btn {
+  padding: 9px 16px; border-radius: 8px; border: 1px solid var(--border);
+  background: #fff; cursor: pointer; font-size: 14px; color: var(--text);
+}
+.btn:hover { background: #f1f2f6; }
+.btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-block { width: 100%; margin-top: 18px; }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--text-muted); }
+.btn-danger { color: var(--danger); border-color: var(--danger-bg); background: var(--danger-bg); }
+.btn-sm { padding: 5px 10px; font-size: 12px; }
+
+/* ---------- 레이아웃 ---------- */
+.app { min-height: 100vh; }
+.topbar {
+  background: #fff; border-bottom: 1px solid var(--border);
+  padding: 10px 20px 8px; position: sticky; top: 0; z-index: 20;
+}
+.topbar-top {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 8px;
+}
+.topbar-title { font-weight: 800; font-size: 19px; letter-spacing: -0.2px; white-space: nowrap; color: var(--text); }
+.main-nav { display: flex; gap: 4px; flex-wrap: wrap; border-top: 1px solid var(--border); padding-top: 8px; }
+.nav-btn {
+  border: none; background: transparent; padding: 8px 12px; border-radius: 8px;
+  cursor: pointer; font-size: 13.5px; color: var(--text-muted); white-space: nowrap;
+}
+.nav-btn:hover { background: #eef0fb; color: var(--text); }
+.nav-btn.active { background: var(--primary); color: #fff; }
+.topbar-user { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+
+.content { max-width: 1180px; margin: 0 auto; padding: 24px 20px 60px; }
+.view h2 { margin: 0 0 16px; font-size: 20px; }
+
+@media (max-width: 480px) {
+  .topbar { padding: 8px 12px 6px; }
+  .topbar-title { font-size: 16.5px; }
+  .topbar-user { font-size: 12px; gap: 6px; }
+  .nav-btn { padding: 7px 9px; font-size: 12.5px; }
+  .content { padding: 16px 12px 48px; }
+}
+
+.toolbar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 16px; background: #fff; padding: 12px 14px; border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.toolbar label { font-size: 13px; color: var(--text-muted); margin-left: 6px; }
+.toolbar select, .toolbar input[type=date] {
+  padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13.5px;
+}
+
+/* 주일(일요일)만 고를 수 있는 날짜 선택 - 굵은 글씨로 강조 */
+.sunday-select {
+  font-weight: 700;
+  color: var(--primary);
+  background: #eef1fd;
+  border: 1px solid #c7d0f7;
+}
+
+.attendance-summary-line {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 10px 0;
+  color: var(--text);
+}
+
+/* ---------- 카드/패널 ---------- */
+.card-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px; margin-bottom: 20px;
+}
+.card-grid label { display: block; font-size: 13px; color: var(--text-muted); margin: 0 0 4px; }
+.card-grid input {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13.5px;
+}
+.stat-card {
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px 18px;
+}
+.stat-card .label { font-size: 12.5px; color: var(--text-muted); }
+.stat-card .value { font-size: 26px; font-weight: 700; margin-top: 6px; }
+.stat-card .value.warn { color: var(--danger); }
+.stat-card .stat-sub { font-size: 11.5px; color: var(--text-muted); margin-top: 4px; }
+.dim-note { color: var(--text-muted); font-size: 12.5px; }
+
+.panel {
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 18px 20px; margin-bottom: 18px;
+}
+.panel h3 { margin: 0 0 12px; font-size: 15px; }
+.panel.wide { grid-column: 1 / -1; }
+
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 800px) { .stats-grid { grid-template-columns: 1fr; } }
+
+/* ---------- 테이블 ---------- */
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+th { color: var(--text-muted); font-weight: 600; background: #fafbfc; position: sticky; top: 0; }
+tr:hover td { background: #f8f9fd; }
+.table-scroll { overflow: auto; max-height: 70vh; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); }
+
+.badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.badge-o { background: #ebfbee; color: var(--success); }
+.badge-x { background: var(--danger-bg); color: var(--danger); }
+.badge-active { background: #ebfbee; color: var(--success); }
+.badge-new { background: #e7f5ff; color: #1971c2; }
+.badge-hold { background: #fff9db; color: #e67700; }
+.badge-removed { background: #f1f3f5; color: #868e96; }
+
+.att-cell { cursor: pointer; text-align: center; font-weight: 700; user-select: none; }
+.att-o { color: var(--success); }
+.att-x { color: var(--danger); }
+/* 출결사유/특이사항이 있는 날짜는 진한 보라색으로 표시 + 클릭하면 팝업으로 내용 확인 */
+.att-cell.att-has-note { color: #5f3dc4; text-decoration: underline dotted; text-underline-offset: 3px; }
+
+.att-note-input {
+  width: 100%; min-width: 160px; padding: 6px 8px; border: 1px solid var(--border);
+  border-radius: 6px; font-size: 13px;
+}
+
+/* 연간출석부: 가로 스크롤 시 이름 열은 고정되도록 */
+.annual-table th:first-child, .annual-table td:first-child {
+  position: sticky; left: 0; z-index: 2; background: #fff;
+}
+.annual-table thead th:first-child { z-index: 3; }
+.annual-table tr:hover td:first-child { background: #f8f9fd; }
+
+.list .list-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px;
+}
+.list .list-item:last-child { border-bottom: none; }
+.list .empty { color: var(--text-muted); font-size: 13.5px; padding: 8px 0; }
+
+.save-msg { font-size: 13px; color: var(--success); margin-top: 8px; min-height: 18px; }
+
+/* ---------- 모달 ---------- */
+.modal-root {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px;
+}
+.modal-box {
+  background: #fff; border-radius: var(--radius); padding: 22px 24px;
+  width: 100%; max-width: 460px; max-height: 85vh; overflow: auto;
+}
+.modal-box.modal-wide { max-width: 640px; }
+.modal-box h3 { margin-top: 0; }
+.modal-box label { display: block; font-size: 13px; color: var(--text-muted); margin: 10px 0 4px; }
+.modal-box input, .modal-box select, .modal-box textarea {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13.5px;
+}
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+/* ---------- 재적부: 학생 프로필 보기 모달 ---------- */
+.student-name-link { color: var(--primary); text-decoration: none; font-weight: 600; cursor: pointer; }
+.student-name-link:hover { text-decoration: underline; }
+
+/* 재적부 테이블: 이름 앞 작은 프로필 사진(있으면 사진, 없으면 아이콘) */
+.student-name-cell { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.student-thumb {
+  width: 26px; height: 26px; border-radius: 50%; object-fit: cover;
+  background: #eef1fd; flex-shrink: 0;
+}
+.student-thumb-placeholder {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; color: #adb5bd;
+}
+
+.profile-header { display: flex; gap: 16px; align-items: center; margin-bottom: 16px; }
+.profile-photo {
+  width: 84px; height: 84px; border-radius: 50%; object-fit: cover;
+  background: #eef1fd; flex-shrink: 0;
+}
+.profile-photo-placeholder { display: flex; align-items: center; justify-content: center; font-size: 36px; color: #adb5bd; }
+.profile-section { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 12px; }
+.profile-section:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+.profile-section h4 { margin: 0 0 8px; font-size: 13.5px; color: var(--text-muted); }
+.profile-field-row { display: flex; gap: 10px; padding: 4px 0; font-size: 13.5px; }
+.profile-field-label { width: 88px; flex-shrink: 0; color: var(--text-muted); }
+.profile-field-value { color: var(--text); font-weight: 500; word-break: break-all; }
+
+/* ---------- 재적부: 학생 추가/수정 폼 - 사진 업로드 + 보호자 연락처 ---------- */
+.photo-upload-row { display: flex; align-items: center; gap: 12px; margin: 6px 0 14px; }
+.photo-preview {
+  width: 64px; height: 64px; border-radius: 50%; object-fit: cover;
+  background: #eef1fd; flex-shrink: 0;
+}
+.photo-preview-placeholder { display: flex; align-items: center; justify-content: center; font-size: 26px; color: #adb5bd; }
+.modal-box .photo-upload-row input[type="file"] { width: auto; padding: 4px 0; border: none; font-size: 12.5px; }
+
+/* 사진 미리보기/placeholder를 감싸는 클릭 가능 영역 - 여기를 클릭한 뒤 Ctrl+V로 붙여넣을 수 있음을 시각적으로 안내 */
+.photo-drop-zone {
+  display: inline-block; border-radius: 50%; cursor: pointer;
+  outline-offset: 3px; transition: box-shadow 0.15s;
+}
+.photo-drop-zone:hover, .photo-drop-zone:focus { box-shadow: 0 0 0 3px rgba(59,91,219,0.3); }
+.photo-drop-zone:focus { outline: none; }
+
+.guardian-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
+.modal-box .guardian-row select { width: auto; flex: 0 0 92px; }
+.modal-box .guardian-row input { width: auto; flex: 1; min-width: 0; }
+
+/* 장학금 수여 시기 - 반기별 다중 선택 체크박스 */
+.scholarship-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 6px 10px; margin: 4px 0 14px;
+}
+.scholarship-chip { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 400; margin: 0; color: var(--text); }
+.scholarship-chip input { width: auto; }
+
+/* ---------- 주간보고서: 학생 출결 요약 ---------- */
+.report-summary-box {
+  background: #eef1fd; border: 1px solid #c7d0f7; border-radius: 8px;
+  padding: 12px 16px; margin-bottom: 16px;
+}
+.report-summary-total { margin: 0; font-size: 15px; font-weight: 700; color: var(--text); }
+.report-summary-sub { margin: 6px 0 0; font-size: 12.5px; color: var(--text-muted); }
+
+/* ---------- 주간보고서: 반별 출결 카드 ---------- */
+.report-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 12px;
+}
+.report-class-card {
+  border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  background: #fff;
+}
+.report-class-card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  background: #f3f4fa; padding: 8px 12px; font-weight: 700; font-size: 13.5px;
+}
+.report-class-teacher-line {
+  padding: 5px 12px; border-bottom: 1px solid #f1f2f6;
+  font-size: 12px; color: var(--text-muted);
+}
+.report-class-tally-line {
+  padding: 5px 12px; border-bottom: 1px solid #f1f2f6;
+  font-size: 12px; font-weight: 700; color: var(--primary);
+}
+.report-class-card-body { padding: 6px 12px; max-height: 260px; overflow-y: auto; }
+.report-student-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 5px 0; border-bottom: 1px solid #f1f2f6; font-size: 13px;
+}
+.report-student-row:last-child { border-bottom: none; }
+
+/* 출결사유/특이사항이 있는 학생의 O/X 배지는 진한 보라색으로, 클릭하면 팝업으로 내용 확인 (연간출석부와 동일) */
+.badge.badge-has-note { background: #efe9fc; color: #5f3dc4; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 2px; }
+
+/* ---------- 주간보고서: 읽기 전용(결과만 표시) 필드 ---------- */
+.report-readonly-label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+.report-readonly-value { display: block; font-size: 15px; font-weight: 700; color: var(--text); }
+.report-readonly-block { white-space: pre-wrap; line-height: 1.7; font-size: 14px; color: var(--text); margin: 0; min-height: 24px; }
+
+/* 주간보고서: 설교 및 예배 정보 - 아이콘이 있는 카드형 배치 */
+.report-info-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+.report-info-card {
+  display: flex; align-items: flex-start; gap: 12px;
+  background: #f8f9fc; border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px 16px;
+}
+.report-info-icon { font-size: 20px; line-height: 1.2; }
+
+/* 주간보고서: 헌금 내역 - 항목별 카드 + 합계 강조 박스 */
+.report-offering-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px; margin-bottom: 12px;
+}
+.report-offering-item {
+  background: #fffaf0; border: 1px solid #ffe8bf; border-radius: 10px;
+  padding: 12px 14px; text-align: center;
+}
+.report-offering-icon { display: block; font-size: 18px; margin-bottom: 4px; }
+.report-offering-label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+.report-offering-value { display: block; font-size: 15px; font-weight: 800; color: #c9700a; }
+.report-offering-total {
+  background: #eef1fd; border: 1px solid #c7d0f7; border-radius: 8px;
+  padding: 10px 16px; font-size: 14.5px; font-weight: 700; color: var(--text); text-align: right;
+}
+.report-offering-total strong { color: var(--primary); font-size: 18px; margin-left: 6px; }
+
+/* ---------- 예배정보입력: 가로로 넓고, 창 크기에 맞춰 자동으로 너비가 조절되는 textarea ---------- */
+.worship-textarea {
+  display: block; width: 100%; box-sizing: border-box;
+  min-height: 150px; padding: 12px 14px; border: 1px solid var(--border);
+  border-radius: 8px; font-size: 14px; font-family: inherit; line-height: 1.6;
+  resize: vertical;
+}
