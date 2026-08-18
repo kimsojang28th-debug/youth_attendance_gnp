@@ -4,6 +4,13 @@ import { loadStudents, getStudentsCache } from "./students.js";
 import { $, escapeHtml, getSundaysOfYear, fmtMonthDay, sortByName, friendlyFirestoreError, openModal, closeModal } from "./utils.js";
 import { isAdmin, currentUser } from "./auth.js";
 
+// 학생 프로필 화면의 "출석현황" 버튼처럼, 다른 화면에서 "이 반의 연간출석부를 보여달라"고
+// 미리 요청해둘 수 있게 하는 값. initAnnualView가 다음에 실행될 때 한 번만 사용되고 초기화됨.
+let _pendingClassId = null;
+export function requestAnnualClass(classId) {
+  _pendingClassId = classId;
+}
+
 export async function initAnnualView() {
   const classes = await loadClasses();
   await loadStudents();
@@ -16,6 +23,12 @@ export async function initAnnualView() {
 
   const classSelect = $("#annualClassSelect");
   classSelect.innerHTML = visible.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+
+  // 다른 화면(학생 프로필의 "출석현황" 버튼 등)에서 특정 반을 미리 요청해뒀으면 그 반을 선택된 상태로 시작
+  if (_pendingClassId && visible.some(c => c.id === _pendingClassId)) {
+    classSelect.value = _pendingClassId;
+  }
+  _pendingClassId = null;
 
   yearSelect.onchange = renderAnnualTable;
   classSelect.onchange = renderAnnualTable;

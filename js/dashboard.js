@@ -1,5 +1,5 @@
 import { loadClasses, getClassesCache } from "./classes.js";
-import { loadStudents, getStudentsCache } from "./students.js";
+import { loadStudents, getStudentsCache, openStudentProfileModal } from "./students.js";
 import { computeLongTermAbsentees, ALERT_THRESHOLD } from "./absentee.js";
 import { buildAttendanceDetail } from "./report.js";
 import { $, escapeHtml, nearestSundayISO, friendlyFirestoreError } from "./utils.js";
@@ -47,10 +47,19 @@ export async function initDashboardView() {
   } else {
     absenteeWrap.innerHTML = absentees.map(a => `
       <div class="list-item">
-        <span>${escapeHtml(a.name)} <span style="color:#868e96;">(${escapeHtml(a.className)})</span></span>
+        <span><a href="#" class="student-name-link" data-student-id="${a.studentId}">${escapeHtml(a.name)}</a> <span style="color:#868e96;">(${escapeHtml(a.className)})</span></span>
         <span class="badge badge-x">${a.weeks}주 연속 결석</span>
       </div>
     `).join("");
+    // 이름을 누르면 재적부와 동일한 학생 프로필 모달(사진/연락처/보호자 등)이 뜸
+    absenteeWrap.querySelectorAll(".student-name-link").forEach(link => {
+      link.onclick = (e) => {
+        e.preventDefault();
+        const id = e.currentTarget.dataset.studentId;
+        const student = getStudentsCache().find(s => s.id === id);
+        if (student) openStudentProfileModal(student);
+      };
+    });
   }
 
   // "새친구" 반은 실제로 학생이 배정되는 반이 아니라 상태(status)로만 관리되므로
