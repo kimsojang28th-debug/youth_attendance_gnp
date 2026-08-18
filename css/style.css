@@ -212,6 +212,17 @@ tr:hover td { background: #f8f9fd; }
 .student-name-link { color: var(--primary); text-decoration: none; font-weight: 600; cursor: pointer; }
 .student-name-link:hover { text-decoration: underline; }
 
+/* 재적부 테이블: 이름 앞 작은 프로필 사진(있으면 사진, 없으면 아이콘) */
+.student-name-cell { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.student-thumb {
+  width: 26px; height: 26px; border-radius: 50%; object-fit: cover;
+  background: #eef1fd; flex-shrink: 0;
+}
+.student-thumb-placeholder {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; color: #adb5bd;
+}
+
 .profile-header { display: flex; gap: 16px; align-items: center; margin-bottom: 16px; }
 .profile-photo {
   width: 84px; height: 84px; border-radius: 50%; object-fit: cover;
@@ -234,9 +245,25 @@ tr:hover td { background: #f8f9fd; }
 .photo-preview-placeholder { display: flex; align-items: center; justify-content: center; font-size: 26px; color: #adb5bd; }
 .modal-box .photo-upload-row input[type="file"] { width: auto; padding: 4px 0; border: none; font-size: 12.5px; }
 
+/* 사진 미리보기/placeholder를 감싸는 클릭 가능 영역 - 여기를 클릭한 뒤 Ctrl+V로 붙여넣을 수 있음을 시각적으로 안내 */
+.photo-drop-zone {
+  display: inline-block; border-radius: 50%; cursor: pointer;
+  outline-offset: 3px; transition: box-shadow 0.15s;
+}
+.photo-drop-zone:hover, .photo-drop-zone:focus { box-shadow: 0 0 0 3px rgba(59,91,219,0.3); }
+.photo-drop-zone:focus { outline: none; }
+
 .guardian-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
 .modal-box .guardian-row select { width: auto; flex: 0 0 92px; }
 .modal-box .guardian-row input { width: auto; flex: 1; min-width: 0; }
+
+/* 장학금 수여 시기 - 반기별 다중 선택 체크박스 */
+.scholarship-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 6px 10px; margin: 4px 0 14px;
+}
+.scholarship-chip { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 400; margin: 0; color: var(--text); }
+.scholarship-chip input { width: auto; }
 
 /* ---------- 주간보고서: 학생 출결 요약 ---------- */
 .report-summary-box {
