@@ -183,6 +183,14 @@ tr:hover td { background: #f8f9fd; }
 .annual-table thead th:first-child { z-index: 3; }
 .annual-table tr:hover td:first-child { background: #f8f9fd; }
 
+/* 연간계획: 절기/행사/비고 텍스트가 길 수 있어 줄바꿈 허용 + 월 칸은 rowspan으로 묶어서 표시 */
+.plan-table th, .plan-table td { white-space: normal; vertical-align: top; }
+.plan-table td { min-width: 90px; }
+.plan-month-cell { text-align: center; font-weight: 700; background: #fafbfc; vertical-align: middle; }
+.plan-date-cell { font-weight: 600; white-space: nowrap; }
+.plan-row-filled td { background: #fffbea; }
+.plan-row-filled:hover td { background: #fff5d6; }
+
 .list .list-item {
   display: flex; justify-content: space-between; align-items: center;
   padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px;
