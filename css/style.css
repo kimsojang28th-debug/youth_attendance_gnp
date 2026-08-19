@@ -163,6 +163,7 @@ tr:hover td { background: #f8f9fd; }
 .badge-new { background: #e7f5ff; color: #1971c2; }
 .badge-hold { background: #fff9db; color: #e67700; }
 .badge-removed { background: #f1f3f5; color: #868e96; }
+.badge-birthday { background: #fff0f6; color: #c2255c; }
 
 .att-cell { cursor: pointer; text-align: center; font-weight: 700; user-select: none; }
 .att-o { color: var(--success); }
