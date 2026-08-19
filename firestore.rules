@@ -71,5 +71,11 @@ service cloud.firestore {
     match /yearlyPlan/{date} {
       allow read, write: if isSignedIn();
     }
+
+    // 교사현황(교사 연락처/생일/직분 등) - 조회는 로그인한 누구나, 추가/수정/삭제는 관리자만
+    match /teachers/{teacherId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
   }
 }
