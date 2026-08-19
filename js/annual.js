@@ -1,6 +1,6 @@
 import { db, collection, getDocs, query, where } from "./firebase-init.js";
 import { loadClasses, getClassesCache } from "./classes.js";
-import { loadStudents, getStudentsCache } from "./students.js";
+import { loadStudents, getStudentsCache, openStudentProfileModal } from "./students.js";
 import { $, escapeHtml, getSundaysOfYear, fmtMonthDay, sortByName, friendlyFirestoreError, openModal, closeModal } from "./utils.js";
 import { isAdmin, currentUser } from "./auth.js";
 
@@ -92,7 +92,7 @@ async function renderAnnualTable() {
       const cursor = hasNote ? "cursor:pointer;" : "cursor:default;";
       return `<td class="att-cell ${cls} ${noteCls}" style="${cursor}" data-date="${date}" ${hasNote ? `data-note="${escapeHtml(note)}"` : ""}>${display}</td>`;
     }).join("");
-    return `<tr><td>${escapeHtml(s.name)}</td>${cells}<td style="font-weight:700;">${total}</td></tr>`;
+    return `<tr><td><a href="#" class="student-name-link" data-student-id="${s.id}">${escapeHtml(s.name)}</a></td>${cells}<td style="font-weight:700;">${total}</td></tr>`;
   }).join("");
 
   const weeklyTotals = sundays.map(date => {
@@ -128,6 +128,16 @@ async function renderAnnualTable() {
         </div>
       `);
       $("#cancelBtn").onclick = closeModal;
+    };
+  });
+
+  // 이름을 누르면 재적부와 동일한 학생 프로필 모달(사진/연락처/보호자 등)이 뜸
+  wrap.querySelectorAll(".student-name-link").forEach(link => {
+    link.onclick = (e) => {
+      e.preventDefault();
+      const id = e.currentTarget.dataset.studentId;
+      const student = getStudentsCache().find(s => s.id === id);
+      if (student) openStudentProfileModal(student);
     };
   });
 }

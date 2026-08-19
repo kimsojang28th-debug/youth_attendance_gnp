@@ -238,8 +238,14 @@ function resizeImageToDataUrl(file, maxSize = 320, quality = 0.75) {
     reader.onerror = () => reject(new Error("파일을 읽을 수 없습니다."));
     reader.onload = () => {
       const img = new Image();
-      img.onerror = () => reject(new Error("이미지를 불러올 수 없습니다."));
+      img.onerror = () => reject(new Error("이미지를 불러올 수 없습니다. 지원되지 않는 이미지 형식일 수 있습니다(예: HEIC). JPG/PNG로 다시 시도해주세요."));
       img.onload = () => {
+        // 브라우저가 이미지를 실제로 디코딩하지 못했는데도 onload가 조용히 불리는 경우(가로/세로 0)가
+        // 있어서, 이 경우엔 깨진 이미지가 그대로 저장되지 않도록 여기서 명확히 오류 처리함.
+        if (!img.naturalWidth || !img.naturalHeight) {
+          reject(new Error("이미지를 읽는 데 문제가 있습니다(가로/세로 크기를 확인할 수 없음). 다른 이미지로 다시 시도해주세요."));
+          return;
+        }
         let { width, height } = img;
         if (width >= height && width > maxSize) {
           height = Math.round(height * (maxSize / width));
@@ -252,7 +258,14 @@ function resizeImageToDataUrl(file, maxSize = 320, quality = 0.75) {
         canvas.width = width;
         canvas.height = height;
         canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL("image/jpeg", quality));
+        const dataUrl = canvas.toDataURL("image/jpeg", quality);
+        // toDataURL이 실패하면 "data:," 같은 빈 값을 조용히 돌려줄 수 있어서, 유효한 이미지
+        // data URL 형식인지 한 번 더 확인한 뒤에만 성공으로 처리함(깨진 값이 그대로 저장되는 것 방지).
+        if (!dataUrl || !dataUrl.startsWith("data:image/") || dataUrl.length < 50) {
+          reject(new Error("이미지 변환에 실패했습니다. 다른 이미지로 다시 시도해주세요."));
+          return;
+        }
+        resolve(dataUrl);
       };
       img.src = reader.result;
     };
@@ -396,10 +409,22 @@ function openStudentModal(student = null) {
     if (!$("#f_photoFile")) return; // 이 모달이 이미 닫혔으면 무시
     const items = e.clipboardData?.items || [];
     const imageItem = Array.from(items).find(it => it.type.startsWith("image/"));
-    if (!imageItem) return; // 복사한 게 이미지가 아니면(텍스트 등) 평소대로 붙여넣기 진행
+    if (!imageItem) {
+      // 사진 영역에 포커스를 두고 Ctrl+V를 눌렀는데도 이미지를 못 찾은 경우, 콘솔에 원인 진단용 로그를 남김
+      // (클립보드에 이미지가 아예 없거나, 브라우저가 인식하지 못하는 형식일 가능성이 높음).
+      if (document.activeElement && document.activeElement.id === "photoDropZone") {
+        console.warn("[사진 붙여넣기] 클립보드에서 이미지 데이터를 찾지 못했습니다.",
+          "클립보드 항목:", Array.from(items).map(it => it.type));
+      }
+      return; // 복사한 게 이미지가 아니면(텍스트 등) 평소대로 붙여넣기 진행
+    }
     e.preventDefault();
     const file = imageItem.getAsFile();
-    if (file) await setPhotoFromFile(file);
+    if (!file) {
+      console.warn("[사진 붙여넣기] 이미지 항목은 찾았지만 파일로 변환하지 못했습니다.");
+      return;
+    }
+    await setPhotoFromFile(file);
   };
   document.addEventListener("paste", window._studentPhotoPasteHandler);
 
@@ -463,21 +488,29 @@ function openStudentModal(student = null) {
     };
     if (!payload.name) { alert("이름을 입력해주세요."); return; }
 
-    if (isEdit) {
-      const prevStatus = student.status;
-      await updateDoc(doc(db, "students", student.id), payload);
-      if (prevStatus !== payload.status) {
+    // 저장 중 오류(예: 사진이 너무 커서 문서 용량 제한을 초과하는 경우, 네트워크 문제, 권한 문제 등)가
+    // 조용히 묻히지 않도록 반드시 사용자에게 알려줌. 이게 없으면 "저장했는데 반영이 안 됐다"처럼
+    // 보이는 것과, 실제로 데이터가 깨져서 저장된 것을 구분할 수 없음.
+    try {
+      if (isEdit) {
+        const prevStatus = student.status;
+        await updateDoc(doc(db, "students", student.id), payload);
+        if (prevStatus !== payload.status) {
+          await addHistoryRecord({
+            studentId: student.id, studentName: payload.name, classId: payload.classId,
+            type: payload.status, date: todayISO(), note: `상태 변경: ${STUDENT_STATUS_LABEL[prevStatus] || prevStatus} → ${STUDENT_STATUS_LABEL[payload.status] || payload.status}`
+          });
+        }
+      } else {
+        const ref = await addDoc(collection(db, "students"), { ...payload, createdAt: serverTimestamp() });
         await addHistoryRecord({
-          studentId: student.id, studentName: payload.name, classId: payload.classId,
-          type: payload.status, date: todayISO(), note: `상태 변경: ${STUDENT_STATUS_LABEL[prevStatus] || prevStatus} → ${STUDENT_STATUS_LABEL[payload.status] || payload.status}`
+          studentId: ref.id, studentName: payload.name, classId: payload.classId,
+          type: payload.status === "new" ? "new" : "transfer_in", date: payload.joinDate, note: "신규 등록"
         });
       }
-    } else {
-      const ref = await addDoc(collection(db, "students"), { ...payload, createdAt: serverTimestamp() });
-      await addHistoryRecord({
-        studentId: ref.id, studentName: payload.name, classId: payload.classId,
-        type: payload.status === "new" ? "new" : "transfer_in", date: payload.joinDate, note: "신규 등록"
-      });
+    } catch (err) {
+      alert(`저장 중 오류가 발생했습니다: ${err.message || err}\n(사진 용량이 너무 크거나 네트워크 문제일 수 있습니다. 사진을 새로 붙여넣거나 파일을 바꿔서 다시 시도해주세요.)`);
+      return;
     }
     await loadStudents(true);
     closeModal();
