@@ -1,6 +1,6 @@
 import { db, doc, getDoc, setDoc, serverTimestamp } from "./firebase-init.js";
 import { loadClasses, getClassesCache } from "./classes.js";
-import { loadStudents, getStudentsCache } from "./students.js";
+import { loadStudents, getStudentsCache, openStudentProfileModal } from "./students.js";
 import {
   $, escapeHtml, nearestSundayISO, sortByName, toast,
   yearSelectOptionsHtml, sundayOptionsHtmlForYear, getSundaysOfYear
@@ -91,7 +91,7 @@ async function renderAttendanceTable() {
           const note = _currentNotes[s.id] || "";
           return `
             <tr data-id="${s.id}">
-              <td>${escapeHtml(s.name)}</td>
+              <td><a href="#" class="student-name-link" data-student-id="${s.id}">${escapeHtml(s.name)}</a></td>
               <td>${s.status === "new" ? "새친구" : s.status === "hold" ? "보류" : "재적"}</td>
               <td class="att-cell att-${val === "O" ? "o" : "x"}" data-val="${val}">${val}</td>
               <td><input type="text" class="att-note-input" value="${escapeHtml(note)}" placeholder="예: 가족여행, 감기몸살 등" /></td>
@@ -121,6 +121,16 @@ async function renderAttendanceTable() {
       const tr = input.closest("tr");
       const id = tr.dataset.id;
       _currentNotes[id] = input.value;
+    };
+  });
+
+  // 이름을 누르면 재적부와 동일한 학생 프로필 모달(사진/연락처/보호자 등)이 뜸
+  wrap.querySelectorAll(".student-name-link").forEach(link => {
+    link.onclick = (e) => {
+      e.preventDefault();
+      const id = e.currentTarget.dataset.studentId;
+      const student = getStudentsCache().find(s => s.id === id);
+      if (student) openStudentProfileModal(student);
     };
   });
 
