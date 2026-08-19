@@ -11,6 +11,7 @@ import { initStatsView } from "./stats.js";
 import { initHistoryView } from "./history.js";
 import { initImportView } from "./import.js";
 import { initBirthdaysView } from "./birthdays.js";
+import { initYearlyPlanView } from "./yearlyplan.js";
 
 const viewInitializers = {
   dashboard: initDashboardView,
@@ -23,7 +24,8 @@ const viewInitializers = {
   stats: initStatsView,
   history: initHistoryView,
   import: initImportView,
-  birthdays: initBirthdaysView
+  birthdays: initBirthdaysView,
+  yearlyplan: initYearlyPlanView
 };
 
 async function showView(name) {
