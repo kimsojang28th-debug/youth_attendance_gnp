@@ -64,6 +64,7 @@
       <button data-view="worship" class="nav-btn">예배정보입력</button>
       <button data-view="students" class="nav-btn">재적부</button>
       <button data-view="birthdays" class="nav-btn">월별 생일자</button>
+      <button data-view="yearlyplan" class="nav-btn">연간계획</button>
       <button data-view="classes" class="nav-btn">반 관리</button>
       <button data-view="history" class="nav-btn">재적변동이력</button>
       <button data-view="stats" class="nav-btn">통계</button>
@@ -133,6 +134,16 @@
       <div class="panel">
         <div id="birthdayListWrap"></div>
       </div>
+    </section>
+
+    <!-- 연간계획 -->
+    <section id="view-yearlyplan" class="view hidden">
+      <h2>연간계획</h2>
+      <div class="toolbar">
+        <label>연도</label>
+        <select id="yearlyPlanYearSelect"></select>
+      </div>
+      <div id="yearlyPlanTableWrap" class="table-scroll"></div>
     </section>
 
     <!-- 반 관리 -->
@@ -205,7 +216,6 @@
 <!-- 공용 모달 -->
 <div id="modalRoot" class="modal-root hidden"></div>
 
-<script type="module" src="js/seed.js"></script>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>
