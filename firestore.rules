@@ -66,5 +66,10 @@ service cloud.firestore {
     match /rosterHistory/{historyId} {
       allow read, create, update, delete: if isSignedIn();
     }
+
+    // 연간계획(절기/교회행사/주일행사/청소년부행사/비고) - weeklyMeta와 동일하게 로그인한 누구나 등록/수정/삭제 가능
+    match /yearlyPlan/{date} {
+      allow read, write: if isSignedIn();
+    }
   }
 }
