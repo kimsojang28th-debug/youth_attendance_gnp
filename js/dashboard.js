@@ -1,5 +1,5 @@
 import { loadClasses, getClassesCache } from "./classes.js";
-import { loadStudents, getStudentsCache, openStudentProfileModal } from "./students.js";
+import { loadStudents, getStudentsCache, openStudentProfileModal, studentThumbHtml } from "./students.js";
 import { computeLongTermAbsentees, ALERT_THRESHOLD } from "./absentee.js";
 import { buildAttendanceDetail } from "./report.js";
 import { $, escapeHtml, nearestSundayISO, friendlyFirestoreError } from "./utils.js";
@@ -47,7 +47,11 @@ export async function initDashboardView() {
   } else {
     absenteeWrap.innerHTML = absentees.map(a => `
       <div class="list-item">
-        <span><a href="#" class="student-name-link" data-student-id="${a.studentId}">${escapeHtml(a.name)}</a> <span style="color:#868e96;">(${escapeHtml(a.className)})</span></span>
+        <span class="student-name-cell">
+          ${studentThumbHtml(a)}
+          <a href="#" class="student-name-link" data-student-id="${a.studentId}">${escapeHtml(a.name)}</a>
+          <span style="color:#868e96;">(${escapeHtml(a.className)})</span>
+        </span>
         <span class="badge badge-x">${a.weeks}주 연속 결석</span>
       </div>
     `).join("");

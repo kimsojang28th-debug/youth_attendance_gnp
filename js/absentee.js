@@ -57,7 +57,7 @@ export async function computeLongTermAbsentees(visibleClassIds = null) {
     for (const s of classStudents) {
       const weeks = countConsecutiveAbsence(s.id, attDocs);
       if (weeks >= ALERT_THRESHOLD) {
-        results.push({ studentId: s.id, name: s.name, classId: c.id, className: c.name, weeks });
+        results.push({ studentId: s.id, name: s.name, classId: c.id, className: c.name, weeks, photoDataUrl: s.photoDataUrl || "" });
       }
     }
   }

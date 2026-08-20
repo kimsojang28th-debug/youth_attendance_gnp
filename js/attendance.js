@@ -1,6 +1,6 @@
 import { db, doc, getDoc, setDoc, serverTimestamp } from "./firebase-init.js";
 import { loadClasses, getClassesCache } from "./classes.js";
-import { loadStudents, getStudentsCache, openStudentProfileModal } from "./students.js";
+import { loadStudents, getStudentsCache, openStudentProfileModal, studentThumbHtml } from "./students.js";
 import {
   $, escapeHtml, nearestSundayISO, sortByName, toast,
   yearSelectOptionsHtml, sundayOptionsHtmlForYear, getSundaysOfYear
@@ -91,7 +91,7 @@ async function renderAttendanceTable() {
           const note = _currentNotes[s.id] || "";
           return `
             <tr data-id="${s.id}">
-              <td><a href="#" class="student-name-link" data-student-id="${s.id}">${escapeHtml(s.name)}</a></td>
+              <td><span class="student-name-cell">${studentThumbHtml(s)}<a href="#" class="student-name-link" data-student-id="${s.id}">${escapeHtml(s.name)}</a></span></td>
               <td>${s.status === "new" ? "새친구" : s.status === "hold" ? "보류" : "재적"}</td>
               <td class="att-cell att-${val === "O" ? "o" : "x"}" data-val="${val}">${val}</td>
               <td><input type="text" class="att-note-input" value="${escapeHtml(note)}" placeholder="예: 가족여행, 감기몸살 등" /></td>

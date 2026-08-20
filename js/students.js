@@ -23,6 +23,15 @@ export function getStudentsCache() {
   return _studentsCache;
 }
 
+// 이름 앞에 붙는 작은 원형 프로필 사진(있으면 사진, 없으면 👤 아이콘). 재적부 테이블에서 쓰던 마크업을
+// 대시보드(장기결석 명단)/주간보고서/연간출석부/출석체크 등 다른 화면에서도 그대로 재사용하기 위해
+// 공용 함수로 분리함(2026-08-20). student가 없거나 photoDataUrl이 없으면 자동으로 placeholder를 보여줌.
+export function studentThumbHtml(student) {
+  return student?.photoDataUrl
+    ? `<img class="student-thumb" src="${student.photoDataUrl}" alt="" />`
+    : `<span class="student-thumb student-thumb-placeholder">👤</span>`;
+}
+
 export async function initStudentsView() {
   const classes = await loadClasses();
   const visibleClasses = isAdmin() ? classes : classes.filter(c => currentUser.classIds.includes(c.id));
@@ -70,24 +79,22 @@ async function renderStudentsTable() {
     <div class="table-scroll">
     <table>
       <thead><tr>
-        <th>이름</th><th>반</th><th>성별</th><th>상태</th><th>등록일</th><th>비고</th><th></th>
+        <th>이름</th><th>반</th><th>성별</th><th>상태</th><th>연락처</th><th>학교</th><th></th>
       </tr></thead>
       <tbody>
         ${list.map(s => `
           <tr data-id="${s.id}">
             <td>
               <span class="student-name-cell">
-                ${s.photoDataUrl
-                  ? `<img class="student-thumb" src="${s.photoDataUrl}" alt="" />`
-                  : `<span class="student-thumb student-thumb-placeholder">👤</span>`}
+                ${studentThumbHtml(s)}
                 <a href="#" class="student-name-link">${escapeHtml(s.name)}</a>
               </span>
             </td>
             <td>${escapeHtml(classMap[s.classId] || s.classId)}</td>
             <td>${s.gender === "F" ? "여" : "남"}</td>
             <td><span class="badge badge-${s.status}">${STUDENT_STATUS_LABEL[s.status] || s.status}</span></td>
-            <td>${escapeHtml(s.joinDate || "")}</td>
-            <td>${escapeHtml(s.note || "")}</td>
+            <td>${escapeHtml(s.phone || "")}</td>
+            <td>${escapeHtml(s.school || "")}</td>
             <td><button class="btn btn-sm editStudentBtn">수정</button></td>
           </tr>
         `).join("")}

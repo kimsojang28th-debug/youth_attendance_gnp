@@ -1,6 +1,6 @@
 import { db, collection, getDocs, query, where } from "./firebase-init.js";
 import { loadClasses, getClassesCache } from "./classes.js";
-import { loadStudents, getStudentsCache, openStudentProfileModal } from "./students.js";
+import { loadStudents, getStudentsCache, openStudentProfileModal, studentThumbHtml } from "./students.js";
 import { $, escapeHtml, getSundaysOfYear, fmtMonthDay, sortByName, friendlyFirestoreError, openModal, closeModal } from "./utils.js";
 import { isAdmin, currentUser } from "./auth.js";
 
@@ -92,7 +92,7 @@ async function renderAnnualTable() {
       const cursor = hasNote ? "cursor:pointer;" : "cursor:default;";
       return `<td class="att-cell ${cls} ${noteCls}" style="${cursor}" data-date="${date}" ${hasNote ? `data-note="${escapeHtml(note)}"` : ""}>${display}</td>`;
     }).join("");
-    return `<tr><td><a href="#" class="student-name-link" data-student-id="${s.id}">${escapeHtml(s.name)}</a></td>${cells}<td style="font-weight:700;">${total}</td></tr>`;
+    return `<tr><td><span class="student-name-cell">${studentThumbHtml(s)}<a href="#" class="student-name-link" data-student-id="${s.id}">${escapeHtml(s.name)}</a></span></td>${cells}<td style="font-weight:700;">${total}</td></tr>`;
   }).join("");
 
   const weeklyTotals = sundays.map(date => {

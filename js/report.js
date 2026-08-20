@@ -1,6 +1,6 @@
 import { db, doc, getDoc } from "./firebase-init.js";
 import { loadClasses, getClassesCache, getClassById } from "./classes.js";
-import { loadStudents, getStudentsCache, openStudentProfileModal } from "./students.js";
+import { loadStudents, getStudentsCache, openStudentProfileModal, studentThumbHtml } from "./students.js";
 import { getAttendanceDoc } from "./attendance.js";
 import {
   $, escapeHtml, nearestSundayISO, sortByName,
@@ -56,7 +56,8 @@ export async function buildAttendanceDetail(date) {
       name: s.name,
       isNew: s.status === "new",
       val: records[s.id] === "O" ? "O" : "X",
-      note: notes[s.id] || ""
+      note: notes[s.id] || "",
+      photoDataUrl: s.photoDataUrl || ""
     }));
     const present = studentRows.filter(s => s.val === "O").length;
     const roster = studentRows.length;
@@ -189,7 +190,7 @@ async function renderReport() {
                 const hasNote = !!(s.note && s.note.trim());
                 return `
                 <div class="report-student-row">
-                  <span><a href="#" class="student-name-link" data-student-id="${s.id}">${escapeHtml(s.name)}</a>${s.isNew ? ' <span class="badge badge-new" style="padding:1px 6px;font-size:10px;">새</span>' : ""}</span>
+                  <span class="student-name-cell">${studentThumbHtml(s)}<a href="#" class="student-name-link" data-student-id="${s.id}">${escapeHtml(s.name)}</a>${s.isNew ? ' <span class="badge badge-new" style="padding:1px 6px;font-size:10px;">새</span>' : ""}</span>
                   <span class="badge badge-${s.val === "O" ? "o" : "x"} ${hasNote ? "badge-has-note" : ""}"
                     ${hasNote ? `data-name="${escapeHtml(s.name)}" data-note="${escapeHtml(s.note)}"` : ""}
                   >${s.val}</span>
