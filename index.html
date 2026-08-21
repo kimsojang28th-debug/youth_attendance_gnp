@@ -1,1066 +1,225 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>승강기 고장·수리 이력관리</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>청소년부 재적관리 프로그램</title>
 
-<!-- PWA: 홈 화면 설치 시 아이콘/이름 설정 -->
-<link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="icon-16.png">
-<link rel="apple-touch-icon" sizes="180x180" href="icon-180.png">
-<meta name="theme-color" content="#1f2937">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="승강기관리">
-<style>
-  * { box-sizing: border-box; }
-  body { font-family: -apple-system, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif; margin:0; background:#f4f5f7; color:#222; }
-  header { background:#1f2937; color:#fff; padding:14px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; }
-  header h1 { font-size:18px; margin:0; }
-  header .sub { font-size:12px; color:#9ca3af; margin-top:2px; }
-  nav { display:flex; gap:6px; padding:10px 20px; background:#fff; border-bottom:1px solid #e5e7eb; flex-wrap:wrap; }
-  nav button { border:none; background:transparent; padding:8px 14px; border-radius:6px; cursor:pointer; font-size:14px; color:#374151; }
-  nav button.active { background:#2563eb; color:#fff; }
-  main { padding:20px; max-width:1200px; margin:0 auto; }
-  .cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:12px; margin-bottom:20px; }
-  .card { background:#fff; border-radius:8px; padding:14px 16px; box-shadow:0 1px 2px rgba(0,0,0,0.06); }
-  .card .label { font-size:12px; color:#6b7280; }
-  .card .value { font-size:22px; font-weight:700; margin-top:4px; }
-  .panel { background:#fff; border-radius:8px; padding:16px; box-shadow:0 1px 2px rgba(0,0,0,0.06); margin-bottom:20px; }
-  .panel h2 { font-size:15px; margin:0 0 12px; }
-  .toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px; }
-  .toolbar h2 { font-size:18px; margin:0; }
-  .btn { display:inline-block; border:none; border-radius:6px; padding:8px 14px; font-size:13px; cursor:pointer; background:#e5e7eb; color:#111; }
-  .btn-primary { background:#2563eb; color:#fff; }
-  .btn-danger { color:#dc2626; background:transparent; text-decoration:underline; padding:4px; }
-  .filters { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px,1fr)); gap:8px; margin-bottom:14px; }
-  .filters input, .filters select { padding:7px 8px; border:1px solid #d1d5db; border-radius:6px; font-size:13px; width:100%; }
-  table { width:100%; border-collapse:collapse; font-size:13px; }
-  th, td { border-bottom:1px solid #e5e7eb; padding:8px 10px; text-align:left; white-space:nowrap; }
-  th { background:#f9fafb; font-weight:600; color:#374151; }
-  tbody tr:hover { background:#f9fafb; cursor:pointer; }
-  .table-wrap { overflow-x:auto; }
-  .badge { display:inline-block; padding:2px 9px; border-radius:9999px; font-size:12px; font-weight:600; }
-  .b-접수 { background:#fef3c7; color:#92400e; }
-  .b-처리중 { background:#dbeafe; color:#1e40af; }
-  .b-완료 { background:#dcfce7; color:#166534; }
-  .b-보류 { background:#fee2e2; color:#991b1b; }
-  .b-운행중 { background:#dcfce7; color:#166534; }
-  .b-점검중 { background:#dbeafe; color:#1e40af; }
-  .b-고장 { background:#fee2e2; color:#991b1b; }
-  .b-폐지 { background:#f3f4f6; color:#6b7280; }
-  .bar-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:13px; }
-  .bar-label { width:70px; flex-shrink:0; color:#374151; }
-  .bar-track { flex:1; background:#f3f4f6; border-radius:4px; height:16px; overflow:hidden; }
-  .bar-fill { background:#60a5fa; height:100%; }
-  .bar-count { width:40px; text-align:right; color:#374151; }
-  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.45); display:flex; align-items:center; justify-content:center; z-index:100; padding:16px; }
-  .modal-box { background:#fff; border-radius:10px; padding:22px; width:100%; max-width:560px; max-height:92vh; overflow-y:auto; }
-  .modal-box h3 { margin-top:0; font-size:17px; }
-  .form-row { margin-bottom:12px; }
-  .form-row label { display:block; font-size:12px; color:#4b5563; margin-bottom:4px; }
-  .form-row input, .form-row select, .form-row textarea {
-    width:100%; border:1px solid #d1d5db; border-radius:6px; padding:8px 10px; font-size:13px; font-family:inherit;
-  }
-  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-  .modal-actions { display:flex; justify-content:space-between; align-items:center; margin-top:16px; }
-  .error-text { color:#dc2626; font-size:13px; margin-bottom:8px; }
-  .empty { color:#9ca3af; text-align:center; padding:24px; }
-  .helpbox { background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:12px 14px; font-size:13px; color:#1e3a8a; margin-bottom:16px; line-height:1.6; }
-  footer.note { font-size:12px; color:#9ca3af; text-align:center; margin:30px 0 10px; }
-</style>
+<!-- 파비콘 / 홈 화면 아이콘 -->
+<link rel="icon" href="favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png" />
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#3b5bdb" />
+
+<!-- iOS: 홈 화면에 추가 시 앱처럼(주소창 없이) 실행되도록 -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="재적관리" />
+
+<link rel="stylesheet" href="css/style.css" />
+<!-- Chart.js를 외부 CDN 대신 저장소에 직접 포함시켜서 로드합니다.
+     (일부 네트워크/방화벽 환경에서 cdnjs 등 외부 CDN 접속이 막혀 "차트 라이브러리를
+     불러오지 못했습니다" 오류가 발생하는 문제를 근본적으로 없애기 위함) -->
+<script src="js/vendor/chart.umd.min.js"></script>
 </head>
 <body>
 
-<header>
-  <div>
-    <h1>승강기 고장·수리 이력관리</h1>
-    <div class="sub">201동~220동(46대) + 외부(7대), 총 53대</div>
-  </div>
-  <div>
-    <button class="btn" onclick="exportBackup()">데이터 백업(저장)</button>
-    <label class="btn" id="import-label" style="cursor:pointer;display:none;">
-      데이터 불러오기
-      <input type="file" accept=".json" style="display:none" onchange="importBackup(event)">
-    </label>
-    <button class="btn" id="login-btn" onclick="openLoginModal()">관리자 로그인</button>
-    <button class="btn" id="logout-btn" onclick="adminLogout()" style="display:none;background:#374151;color:#fff;">로그아웃(관리자)</button>
-  </div>
-</header>
-
-<nav>
-  <button class="nav-btn active" data-view="dashboard" onclick="switchView('dashboard')">대시보드</button>
-  <button class="nav-btn" data-view="repairs" onclick="switchView('repairs')">고장·수리 이력</button>
-  <button class="nav-btn" data-view="elevators" onclick="switchView('elevators')">승강기 관리</button>
-  <button class="nav-btn" data-view="memos" onclick="switchView('memos')">승강기 메모</button>
-</nav>
-
-<main>
-  <div class="helpbox">
-    이 페이지의 데이터는 온라인 저장소(Firebase)에 저장되어, 어떤 컴퓨터·브라우저에서 접속하더라도
-    같은 내용을 실시간으로 함께 보고 편집할 수 있습니다. 다만 만약을 대비해 정기적으로 우측 상단
-    <b>"데이터 백업"</b> 버튼으로 파일을 저장해두시는 것을 권장합니다.
-  </div>
-  <div id="view-dashboard" class="view"></div>
-  <div id="view-repairs" class="view" style="display:none"></div>
-  <div id="view-elevators" class="view" style="display:none"></div>
-  <div id="view-memos" class="view" style="display:none"></div>
-</main>
-
-<div id="modal-root"></div>
-
-<footer class="note">승강기 고장·수리 이력관리 (온라인 동기화 버전)</footer>
-
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script>
-/* ============== Firebase 초기화 ============== */
-const firebaseConfig = {
-  apiKey: "AIzaSyCNnhPZT1I8PhD2qCQc3_JekuheqNWO484",
-  authDomain: "elevator-verahills.firebaseapp.com",
-  projectId: "elevator-verahills",
-  storageBucket: "elevator-verahills.firebasestorage.app",
-  messagingSenderId: "233456126930",
-  appId: "1:233456126930:web:b867176ba1da115cf1d60b",
-  measurementId: "G-18FNEHDNWR"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const auth = firebase.auth();
-const stateDocRef = db.collection('elevatorApp').doc('state');
-
-/* ============== 관리자 로그인 ==============
-   - 로그인하지 않은 사람: 조회만 가능 (isAdmin = false)
-   - 로그인한 사람(관리자 계정): 등록/수정/삭제 가능 (isAdmin = true)
-   - 실제 데이터 보호는 Firestore 보안 규칙(서버 쪽)에서 이루어짐. 여기 isAdmin은 화면 표시용.
-*/
-let isAdmin = false;
-
-function openLoginModal() {
-  openModal(`
-    <h3>관리자 로그인</h3>
-    <form id="login-form" onsubmit="return submitLogin(event)">
-      <div class="form-row"><label>이메일</label><input type="email" name="email" required autocomplete="username"></div>
-      <div class="form-row"><label>비밀번호</label><input type="password" name="password" required autocomplete="current-password"></div>
-      <div id="login-error" class="error-text" style="display:none;"></div>
-      <div class="modal-actions">
-        <div><span></span></div>
-        <div>
-          <button type="button" class="btn" onclick="closeModal()">취소</button>
-          <button type="submit" class="btn btn-primary">로그인</button>
-        </div>
-      </div>
+<!-- ===== 로그인 화면 ===== -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-box">
+    <h1>청소년부 재적관리</h1>
+    <p class="sub">교사/부장 계정으로 로그인해주세요.</p>
+    <form id="loginForm">
+      <label>이메일</label>
+      <input type="email" id="loginEmail" required placeholder="you@example.com" />
+      <label>비밀번호</label>
+      <input type="password" id="loginPassword" required placeholder="비밀번호" />
+      <button type="submit" class="btn btn-primary btn-block">로그인</button>
     </form>
-  `);
-}
+    <p id="loginError" class="error-text"></p>
+    <details class="admin-hint">
+      <summary>처음 사용하시나요?</summary>
+      <p>관리자(부장님) 계정이 없다면 Firebase 콘솔 &gt; Authentication에서 먼저 계정을 만들고, Firestore의 <code>users</code> 컬렉션에 role을 <code>admin</code>으로 등록해주세요. 자세한 방법은 README.md를 참고하세요.</p>
+    </details>
+  </div>
+</div>
 
-function submitLogin(e) {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const email = fd.get('email');
-  const password = fd.get('password');
-  auth.signInWithEmailAndPassword(email, password)
-    .then(() => { closeModal(); })
-    .catch(() => {
-      const box = document.getElementById('login-error');
-      if (box) { box.style.display = 'block'; box.textContent = '로그인에 실패했습니다. 이메일/비밀번호를 확인해주세요.'; }
-    });
-  return false;
-}
-
-function adminLogout() {
-  if (!confirm('로그아웃하시겠습니까?')) return;
-  auth.signOut();
-}
-
-function updateAuthUI() {
-  const loginBtn = document.getElementById('login-btn');
-  const logoutBtn = document.getElementById('logout-btn');
-  const importLabel = document.getElementById('import-label');
-  if (loginBtn) loginBtn.style.display = isAdmin ? 'none' : 'inline-block';
-  if (logoutBtn) logoutBtn.style.display = isAdmin ? 'inline-block' : 'none';
-  if (importLabel) importLabel.style.display = isAdmin ? 'inline-block' : 'none';
-}
-
-/* ============== 데이터 저장/불러오기 ==============
-   - localStorage: 인터넷이 잠깐 끊겨도 화면이 바로 뜰 수 있도록 하는 임시 캐시(백업용)
-   - Firestore(stateDocRef): 실제 저장소. 모든 기기/브라우저가 이 데이터를 공유해서 봄
-*/
-const STORAGE_KEY = 'elevator_app_data_v1';
-
-const ISSUE_TYPES = ['정지(동작불가)', '승객갇힘', '이상소음', '문 열림/닫힘 불량', '운행 지연', '버튼/조작반 이상', '정기점검 지적사항', '기타'];
-const COST_STATUSES = ['미지급', '처리중', '지급완료', '무상AS', '기타'];
-
-function loadData() {
-  // 주의: 여기서는 절대 온라인 저장소(Firestore)에 쓰지 않습니다.
-  // 이 함수는 화면이 뜨기 전, 잠깐 보여줄 로컬 캐시 데이터만 만듭니다.
-  // 온라인 저장소에 실제로 처음 데이터를 올릴지 말지는 아래 onSnapshot 리스너에서만 판단합니다.
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (raw) {
-    try { return JSON.parse(raw); } catch (e) { /* fallthrough to seed */ }
-  }
-  return seedData();
-}
-
-function saveData(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  stateDocRef.set(data).catch(err => {
-    console.error('Firestore 저장 실패:', err);
-    alert('온라인 저장소에 저장하지 못했습니다. 인터넷 연결 상태를 확인한 뒤 다시 시도해주세요.');
-  });
-}
-
-function seedData() {
-  const elevators = [];
-  let id = 1;
-  for (let b = 201; b <= 220; b++) {
-    const idx = b - 201;
-    const count = idx < 6 ? 3 : 2; // 6개 동 3대 + 14개 동 2대 = 46대
-    for (let u = 1; u <= count; u++) {
-      elevators.push({
-        id: id++, building: String(b), unit_no: String(u),
-        name: `${b}동 ${u}호기`, location: `${b}동`,
-        manufacturer: '', model: '', install_date: '', capacity: '',
-        status: '운행중', memo: ''
-      });
-    }
-  }
-  for (let u = 1; u <= 7; u++) {
-    elevators.push({
-      id: id++, building: '외부', unit_no: String(u),
-      name: `외부 ${u}호기`, location: '단지 외부/부속동',
-      manufacturer: '', model: '', install_date: '', capacity: '',
-      status: '운행중', memo: ''
-    });
-  }
-  return { elevators, repairs: [], nextRepairId: 1, memos: [], nextMemoId: 1 };
-}
-
-/* 예전 백업 파일이나 예전에 저장된 온라인 데이터에는 memos 항목이 없을 수 있으므로,
-   화면에 쓰기 전에 항상 이 함수로 memos/nextMemoId 필드를 보정한다. */
-function ensureMemosField(s) {
-  if (!Array.isArray(s.memos)) s.memos = [];
-  if (!s.nextMemoId) s.nextMemoId = Math.max(0, ...s.memos.map(m => m.id || 0)) + 1;
-  return s;
-}
-
-let state = ensureMemosField(loadData());
-let currentView = 'dashboard';
-
-/* ============== 유틸 ============== */
-function fmtMoney(n) { return (n || 0).toLocaleString('ko-KR') + '원'; }
-function fmtDT(s) { return s ? s.replace('T', ' ') : '-'; }
-function esc(s) { return (s ?? '').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function badge(cls, text) { return `<span class="badge b-${esc(cls)}">${esc(text)}</span>`; }
-function findElevator(id) { return state.elevators.find(e => String(e.id) === String(id)); }
-
-function sortedElevators() {
-  return [...state.elevators].sort((a, b) => {
-    const aOut = a.building === '외부' ? 1 : 0;
-    const bOut = b.building === '외부' ? 1 : 0;
-    if (aOut !== bOut) return aOut - bOut;
-    if (a.building !== b.building) return a.building.localeCompare(b.building, 'ko', { numeric: true });
-    return Number(a.unit_no) - Number(b.unit_no);
-  });
-}
-
-function buildingList() {
-  const set = new Set(state.elevators.map(e => e.building));
-  return [...set].sort((a, b) => {
-    if (a === '외부') return 1;
-    if (b === '외부') return -1;
-    return a.localeCompare(b, 'ko', { numeric: true });
-  });
-}
-
-/* 영문 ABC 순 먼저, 그 다음 한글 가나다 순으로 정렬 */
-function comparePartsName(a, b) {
-  const aEng = /^[A-Za-z]/.test(a);
-  const bEng = /^[A-Za-z]/.test(b);
-  if (aEng !== bEng) return aEng ? -1 : 1;
-  return aEng ? a.localeCompare(b, 'en', { sensitivity: 'base' }) : a.localeCompare(b, 'ko');
-}
-
-function partsOf(r) {
-  return (r.parts || '').split(',').map(s => s.trim()).filter(Boolean);
-}
-
-function getPartsList() {
-  const set = new Set();
-  state.repairs.forEach(r => partsOf(r).forEach(p => set.add(p)));
-  return [...set].sort(comparePartsName);
-}
-
-/* ============== 모달 ============== */
-function openModal(html) {
-  document.getElementById('modal-root').innerHTML =
-    `<div class="modal-overlay" id="modal-overlay"><div class="modal-box">${html}</div></div>`;
-  document.getElementById('modal-overlay').addEventListener('click', (e) => {
-    if (e.target.id === 'modal-overlay') closeModal();
-  });
-}
-function closeModal() { document.getElementById('modal-root').innerHTML = ''; }
-
-/* ============== 네비게이션 ============== */
-function switchView(view) {
-  currentView = view;
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
-  document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
-  document.getElementById('view-' + view).style.display = 'block';
-  if (view === 'dashboard') renderDashboard();
-  if (view === 'repairs') renderRepairs();
-  if (view === 'elevators') renderElevators();
-  if (view === 'memos') renderMemos();
-}
-
-/* ============== 대시보드 ============== */
-function renderDashboard() {
-  const repairs = state.repairs;
-  const total = repairs.length;
-  const openCount = repairs.filter(r => r.status !== '완료').length;
-  const now = new Date();
-  const ym = now.toISOString().slice(0, 7);
-  const thisMonth = repairs.filter(r => (r.report_date || '').slice(0, 7) === ym).length;
-  const totalCost = repairs.reduce((s, r) => s + (Number(r.cost) || 0), 0);
-
-  const byBuilding = {};
-  repairs.forEach(r => {
-    const e = findElevator(r.elevator_id);
-    const b = e ? e.building : '알수없음';
-    byBuilding[b] = (byBuilding[b] || 0) + 1;
-  });
-  const byBuildingArr = Object.entries(byBuilding).sort((a, b) => b[1] - a[1]);
-  const maxBuildingCnt = Math.max(1, ...byBuildingArr.map(x => x[1]));
-
-  const byContractor = {};
-  repairs.forEach(r => {
-    const c = r.contractor || '미지정';
-    if (!byContractor[c]) byContractor[c] = { cnt: 0, cost: 0 };
-    byContractor[c].cnt++;
-    byContractor[c].cost += Number(r.cost) || 0;
-  });
-  const contractorArr = Object.entries(byContractor).sort((a, b) => b[1].cnt - a[1].cnt);
-
-  const byElevator = {};
-  repairs.forEach(r => { byElevator[r.elevator_id] = (byElevator[r.elevator_id] || 0) + 1; });
-  const topElevators = Object.entries(byElevator)
-    .sort((a, b) => b[1] - a[1]).slice(0, 10)
-    .map(([id, cnt]) => ({ name: (findElevator(id) || {}).name || '알수없음', cnt }));
-
-  const byMonth = {};
-  repairs.forEach(r => {
-    const m = (r.report_date || '').slice(0, 7);
-    if (m) byMonth[m] = (byMonth[m] || 0) + 1;
-  });
-  const monthArr = Object.entries(byMonth).sort((a, b) => a[0].localeCompare(b[0])).slice(-12);
-  const maxMonthCnt = Math.max(1, ...monthArr.map(x => x[1]));
-
-  const byPart = {};
-  repairs.forEach(r => partsOf(r).forEach(p => { byPart[p] = (byPart[p] || 0) + 1; }));
-  const partsArr = Object.entries(byPart).sort((a, b) => b[1] - a[1]).slice(0, 10);
-  const maxPartCnt = Math.max(1, ...partsArr.map(x => x[1]));
-
-  document.getElementById('view-dashboard').innerHTML = `
-    <div class="cards">
-      <div class="card"><div class="label">관리 승강기 대수</div><div class="value">${state.elevators.length}대</div></div>
-      <div class="card"><div class="label">전체 고장·수리 건수</div><div class="value">${total}건</div></div>
-      <div class="card"><div class="label">미완료 건수</div><div class="value" style="color:#dc2626">${openCount}건</div></div>
-      <div class="card"><div class="label">이번 달 발생</div><div class="value">${thisMonth}건</div></div>
-    </div>
-
-    <div class="panel">
-      <h2>월별 발생 추이 (최근 12개월)</h2>
-      ${monthArr.length ? monthArr.map(([m, c]) => `
-        <div class="bar-row">
-          <div class="bar-label">${m}</div>
-          <div class="bar-track"><div class="bar-fill" style="width:${(c / maxMonthCnt * 100).toFixed(0)}%"></div></div>
-          <div class="bar-count">${c}건</div>
-        </div>`).join('') : '<div class="empty">데이터가 없습니다.</div>'}
-    </div>
-
-    <div class="panel">
-      <h2>동별 고장 빈도</h2>
-      ${byBuildingArr.length ? byBuildingArr.map(([b, c]) => `
-        <div class="bar-row">
-          <div class="bar-label">${esc(b)}</div>
-          <div class="bar-track"><div class="bar-fill" style="width:${(c / maxBuildingCnt * 100).toFixed(0)}%"></div></div>
-          <div class="bar-count">${c}건</div>
-        </div>`).join('') : '<div class="empty">데이터가 없습니다.</div>'}
-    </div>
-
-    <div class="panel">
-      <h2>고장 빈발 승강기 TOP 10</h2>
-      <div class="table-wrap"><table>
-        <thead><tr><th>승강기</th><th>건수</th></tr></thead>
-        <tbody>${topElevators.length ? topElevators.map(r => `<tr><td>${esc(r.name)}</td><td>${r.cnt}건</td></tr>`).join('') : '<tr><td colspan="2" class="empty">데이터가 없습니다.</td></tr>'}</tbody>
-      </table></div>
-    </div>
-
-    <div class="panel">
-      <h2>처리업체별 현황 (누적 비용: ${fmtMoney(totalCost)})</h2>
-      <div class="table-wrap"><table>
-        <thead><tr><th>업체</th><th>건수</th><th>비용</th></tr></thead>
-        <tbody>${contractorArr.length ? contractorArr.map(([c, v]) => `<tr><td>${esc(c)}</td><td>${v.cnt}건</td><td>${fmtMoney(v.cost)}</td></tr>`).join('') : '<tr><td colspan="3" class="empty">데이터가 없습니다.</td></tr>'}</tbody>
-      </table></div>
-    </div>
-
-    <div class="panel">
-      <h2>교체 부품 소모 TOP 10</h2>
-      ${partsArr.length ? partsArr.map(([p, c]) => `
-        <div class="bar-row">
-          <div class="bar-label" style="width:120px;">${esc(p)}</div>
-          <div class="bar-track"><div class="bar-fill" style="width:${(c / maxPartCnt * 100).toFixed(0)}%"></div></div>
-          <div class="bar-count">${c}건</div>
-        </div>`).join('') : '<div class="empty">등록된 교체 부품 데이터가 없습니다.</div>'}
-    </div>
-  `;
-}
-
-/* ============== 고장·수리 이력 ============== */
-let repairFilters = { building: '', status: '', from: '', to: '', issue_type: '', cost_status: '', parts: '', elevator_id: '' };
-let repairSortOrder = 'desc'; // 'desc' = 신고일시 최신순, 'asc' = 과거순
-let selectedRepairIds = new Set();
-
-function renderRepairs() {
-  const buildings = buildingList();
-  const statuses = ['접수', '처리중', '완료', '보류'];
-  selectedRepairIds = new Set();
-
-  const filterElevator = repairFilters.elevator_id ? findElevator(repairFilters.elevator_id) : null;
-
-  document.getElementById('view-repairs').innerHTML = `
-    <div class="toolbar">
-      <h2>고장·수리 이력</h2>
-      <div>
-        ${isAdmin ? `<button class="btn btn-danger" style="text-decoration:none;background:#fee2e2;" onclick="deleteSelectedRepairs()">선택 삭제</button>` : ''}
-        <button class="btn" onclick="exportRepairsCsv()">CSV 내보내기</button>
-        ${isAdmin ? `<button class="btn btn-primary" onclick="openRepairForm()">+ 신규 등록</button>` : ''}
+<!-- ===== 메인 앱 ===== -->
+<div id="app" class="app hidden">
+  <header class="topbar">
+    <div class="topbar-top">
+      <div class="topbar-title">🙌 청소년부 재적관리</div>
+      <div class="topbar-user">
+        <span id="userLabel"></span>
+        <button id="logoutBtn" class="btn btn-ghost">로그아웃</button>
       </div>
     </div>
-    ${filterElevator ? `
-    <div class="panel" style="background:#fffbeb;border:1px solid #fde68a;display:flex;align-items:center;justify-content:space-between;gap:10px;">
-      <span>현재 <b>${esc(filterElevator.building)} ${esc(filterElevator.unit_no)}호기 (${esc(filterElevator.name)})</b> 이력만 표시 중입니다.</span>
-      <button class="btn" onclick="clearElevatorHistoryFilter()">전체 이력 보기</button>
-    </div>` : ''}
-    <div class="panel">
-      <div class="filters">
-        <div>
-          <label style="display:block;font-size:11px;color:#6b7280;margin-bottom:3px;">동</label>
-          <select id="f-building" onchange="applyRepairFilters()">
-            <option value="">전체 동</option>
-            ${buildings.map(b => `<option value="${esc(b)}" ${repairFilters.building === b ? 'selected' : ''}>${esc(b)}</option>`).join('')}
-          </select>
-        </div>
-        <div>
-          <label style="display:block;font-size:11px;color:#6b7280;margin-bottom:3px;">상태</label>
-          <select id="f-status" onchange="applyRepairFilters()">
-            <option value="">전체 상태</option>
-            ${statuses.map(s => `<option value="${s}" ${repairFilters.status === s ? 'selected' : ''}>${s}</option>`).join('')}
-          </select>
-        </div>
-        <div>
-          <label style="display:block;font-size:11px;color:#6b7280;margin-bottom:3px;">기간별 조회 (시작)</label>
-          <input id="f-from" type="date" value="${repairFilters.from}" onchange="applyRepairFilters()">
-        </div>
-        <div>
-          <label style="display:block;font-size:11px;color:#6b7280;margin-bottom:3px;">기간별 조회(종료)</label>
-          <input id="f-to" type="date" value="${repairFilters.to}" onchange="applyRepairFilters()">
-        </div>
-        <div>
-          <label style="display:block;font-size:11px;color:#6b7280;margin-bottom:3px;">고장유형</label>
-          <select id="f-issue-type" onchange="applyRepairFilters()">
-            <option value="">전체 고장유형</option>
-            ${ISSUE_TYPES.map(t => `<option value="${t}" ${repairFilters.issue_type === t ? 'selected' : ''}>${t}</option>`).join('')}
-          </select>
-        </div>
-        <div>
-          <label style="display:block;font-size:11px;color:#6b7280;margin-bottom:3px;">비용처리</label>
-          <select id="f-cost-status" onchange="applyRepairFilters()">
-            <option value="">전체 비용처리</option>
-            ${COST_STATUSES.map(s => `<option value="${s}" ${repairFilters.cost_status === s ? 'selected' : ''}>${s}</option>`).join('')}
-          </select>
-        </div>
-        <div>
-          <label style="display:block;font-size:11px;color:#6b7280;margin-bottom:3px;">교체부품</label>
-          <select id="f-parts" onchange="applyRepairFilters()">
-            <option value="">전체 부품</option>
-            ${getPartsList().map(p => `<option value="${esc(p)}" ${repairFilters.parts === p ? 'selected' : ''}>${esc(p)}</option>`).join('')}
-          </select>
-        </div>
-        <div>
-          <label style="display:block;font-size:11px;color:#6b7280;margin-bottom:3px;">정렬</label>
-          <select id="f-sort" onchange="applySortOrder()">
-            <option value="desc" ${repairSortOrder === 'desc' ? 'selected' : ''}>신고일시 최신순</option>
-            <option value="asc" ${repairSortOrder === 'asc' ? 'selected' : ''}>신고일시 과거순</option>
-          </select>
-        </div>
+    <nav id="mainNav" class="main-nav">
+      <button data-view="dashboard" class="nav-btn active">대시보드</button>
+      <button data-view="report" class="nav-btn">주간보고서</button>
+      <button data-view="annual" class="nav-btn">연간출석부</button>
+      <button data-view="attendance" class="nav-btn">출석체크</button>
+      <button data-view="worship" class="nav-btn">예배정보입력</button>
+      <button data-view="students" class="nav-btn">재적부</button>
+      <button data-view="teachers" class="nav-btn">교사현황</button>
+      <button data-view="birthdays" class="nav-btn">월별 생일자</button>
+      <button data-view="yearlyplan" class="nav-btn">연간계획</button>
+      <button data-view="classes" class="nav-btn">반 관리</button>
+      <button data-view="history" class="nav-btn">재적변동이력</button>
+      <button data-view="stats" class="nav-btn">통계</button>
+      <button data-view="import" class="nav-btn">출석 가져오기</button>
+    </nav>
+  </header>
+
+  <main class="content">
+
+    <!-- 대시보드 -->
+    <section id="view-dashboard" class="view">
+      <h2>대시보드</h2>
+      <div class="card-grid" id="dashboardCards"></div>
+      <div class="panel">
+        <h3>이번 주 반별 출석 현황</h3>
+        <div id="dashboardWeekTable"></div>
       </div>
-    </div>
-    <div class="panel table-wrap">
-      <table>
-        <thead><tr>${isAdmin ? `<th style="width:32px;"><input type="checkbox" id="repairs-select-all" onchange="toggleSelectAllRepairs(this.checked)"></th>` : ''}<th>신고일시</th><th>동/호기</th><th>고장위치(층)</th><th>고장유형</th><th>증상</th><th>상태</th><th>처리업체</th><th>처리일시</th><th>비용</th><th>비용처리</th></tr></thead>
-        <tbody id="repairs-tbody"></tbody>
-      </table>
-    </div>
-  `;
-  renderRepairsTable();
-}
-
-function clearElevatorHistoryFilter() {
-  repairFilters = { ...repairFilters, elevator_id: '' };
-  renderRepairs();
-}
-
-function applyRepairFilters() {
-  repairFilters = {
-    building: document.getElementById('f-building').value,
-    status: document.getElementById('f-status').value,
-    from: document.getElementById('f-from').value,
-    to: document.getElementById('f-to').value,
-    issue_type: document.getElementById('f-issue-type').value,
-    cost_status: document.getElementById('f-cost-status').value,
-    parts: document.getElementById('f-parts').value,
-    elevator_id: repairFilters.elevator_id,
-  };
-  selectedRepairIds = new Set();
-  renderRepairsTable();
-}
-
-function applySortOrder() {
-  repairSortOrder = document.getElementById('f-sort').value;
-  renderRepairsTable();
-}
-
-function toggleRepairSelect(id, checked) {
-  if (checked) selectedRepairIds.add(id); else selectedRepairIds.delete(id);
-}
-
-function toggleSelectAllRepairs(checked) {
-  const rows = filteredRepairs();
-  if (checked) rows.forEach(r => selectedRepairIds.add(r.id));
-  else rows.forEach(r => selectedRepairIds.delete(r.id));
-  renderRepairsTable();
-}
-
-function deleteSelectedRepairs() {
-  if (!isAdmin) { alert('관리자 로그인 후 이용해주세요.'); return; }
-  if (selectedRepairIds.size === 0) { alert('삭제할 이력을 먼저 선택해주세요.'); return; }
-  if (!confirm(`선택한 이력 ${selectedRepairIds.size}건을 삭제하시겠습니까?`)) return;
-  state.repairs = state.repairs.filter(r => !selectedRepairIds.has(r.id));
-  selectedRepairIds = new Set();
-  saveData(state);
-  renderRepairsTable();
-  if (currentView === 'dashboard') renderDashboard();
-}
-
-function filteredRepairs() {
-  const dir = repairSortOrder === 'asc' ? 1 : -1;
-  return state.repairs.filter(r => {
-    const e = findElevator(r.elevator_id) || {};
-    if (repairFilters.elevator_id && String(r.elevator_id) !== String(repairFilters.elevator_id)) return false;
-    if (repairFilters.building && e.building !== repairFilters.building) return false;
-    if (repairFilters.status && r.status !== repairFilters.status) return false;
-    if (repairFilters.issue_type && r.issue_type !== repairFilters.issue_type) return false;
-    if (repairFilters.cost_status && (r.cost_status || '미지급') !== repairFilters.cost_status) return false;
-    if (repairFilters.parts && !partsOf(r).includes(repairFilters.parts)) return false;
-    if (repairFilters.from && (r.report_date || '') < repairFilters.from) return false;
-    if (repairFilters.to && (r.report_date || '') > repairFilters.to + 'T23:59') return false;
-    return true;
-  }).sort((a, b) => dir * (a.report_date || '').localeCompare(b.report_date || ''));
-}
-
-function renderRepairsTable() {
-  const rows = filteredRepairs();
-  const tbody = document.getElementById('repairs-tbody');
-  if (!tbody) return;
-  if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="${isAdmin ? 11 : 10}" class="empty">해당 조건의 이력이 없습니다.</td></tr>`;
-  } else {
-    tbody.innerHTML = rows.map(r => {
-      const e = findElevator(r.elevator_id) || {};
-      return `<tr onclick="openRepairForm(${r.id})">
-        ${isAdmin ? `<td onclick="event.stopPropagation()"><input type="checkbox" class="repair-check" ${selectedRepairIds.has(r.id) ? 'checked' : ''} onchange="toggleRepairSelect(${r.id}, this.checked)"></td>` : ''}
-        <td>${fmtDT(r.report_date)}</td>
-        <td>${esc(e.building)} ${esc(e.unit_no)}호기</td>
-        <td>${esc(r.fault_floor) || '-'}</td>
-        <td>${esc(r.issue_type)}</td>
-        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;" title="${esc(r.symptom)}">${esc(r.symptom)}</td>
-        <td>${badge(r.status, r.status)}</td>
-        <td>${esc(r.contractor) || '-'}</td>
-        <td>${fmtDT(r.handled_date)}</td>
-        <td>${fmtMoney(r.cost)}</td>
-        <td>${esc(r.cost_status) || '-'}</td>
-      </tr>`;
-    }).join('');
-  }
-  const selectAll = document.getElementById('repairs-select-all');
-  if (selectAll) selectAll.checked = rows.length > 0 && rows.every(r => selectedRepairIds.has(r.id));
-}
-
-function elevatorOptionsHtml(selectedId) {
-  return sortedElevators().map(e =>
-    `<option value="${e.id}" ${String(e.id) === String(selectedId) ? 'selected' : ''}>${esc(e.building)} ${esc(e.unit_no)}호기 (${esc(e.name)})</option>`
-  ).join('');
-}
-
-function openRepairForm(id) {
-  const existing = id ? state.repairs.find(r => r.id === id) : null;
-  const isEdit = !!existing;
-  const statuses = ['접수', '처리중', '완료', '보류'];
-  const issueTypes = ISSUE_TYPES;
-  const costStatuses = COST_STATUSES;
-  const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-
-  openModal(`
-    <h3>${isAdmin ? (isEdit ? '이력 수정' : '고장·수리 이력 등록') : '이력 상세보기'}</h3>
-    <form id="repair-form" onsubmit="return submitRepairForm(event, ${isEdit ? existing.id : 'null'})">
-      <fieldset ${isAdmin ? '' : 'disabled'} style="border:none;padding:0;margin:0;">
-      <div class="form-row">
-        <label>승강기 *</label>
-        <select name="elevator_id" required>${elevatorOptionsHtml(existing?.elevator_id)}</select>
+      <div class="panel">
+        <h3>⚠️ 장기결석 학생 (최근 3주 연속 결석)</h3>
+        <div id="absenteeList" class="list"></div>
       </div>
-      <div class="form-row"><label>고장위치(층)</label><input type="text" name="fault_floor" value="${esc(existing?.fault_floor)}" placeholder="예: 7층, 지하1층 등"></div>
-      <div class="grid2">
-        <div class="form-row"><label>신고일시 *</label>
-          <input type="datetime-local" name="report_date" required value="${existing ? existing.report_date : nowLocal}"></div>
-        <div class="form-row"><label>신고자</label><input type="text" name="reporter" value="${esc(existing?.reporter)}"></div>
+    </section>
+
+    <!-- 출석체크 -->
+    <section id="view-attendance" class="view hidden">
+      <h2>주일 출석체크</h2>
+      <div class="toolbar">
+        <label>연도</label>
+        <select id="attendanceYearSelect"></select>
+        <label>주일 날짜</label>
+        <select id="attendanceDate" class="sunday-select"></select>
+        <label>반 선택</label>
+        <select id="attendanceClassSelect"></select>
+        <button id="loadAttendanceBtn" class="btn">불러오기</button>
       </div>
-      <div class="form-row"><label>도착시간</label><input type="datetime-local" name="arrival_time" value="${existing?.arrival_time || ''}"></div>
-      <div class="form-row">
-        <label>고장유형 *</label>
-        <select name="issue_type" required>
-          ${issueTypes.map(t => `<option value="${t}" ${existing?.issue_type === t ? 'selected' : ''}>${t}</option>`).join('')}
+      <div id="attendanceTableWrap"></div>
+      <p id="attendanceSummaryLine" class="attendance-summary-line"></p>
+      <button id="saveAttendanceBtn" class="btn btn-primary">출석 저장</button>
+      <p id="attendanceSaveMsg" class="save-msg"></p>
+    </section>
+
+    <!-- 재적부 -->
+    <section id="view-students" class="view hidden">
+      <h2>재적부 (학생 명단)</h2>
+      <div class="toolbar">
+        <select id="studentsClassFilter"><option value="all">전체 반</option></select>
+        <select id="studentsStatusFilter">
+          <option value="all">전체 상태</option>
+          <option value="active">재적</option>
+          <option value="new">새친구</option>
+          <option value="hold">보류</option>
+          <option value="removed">제적</option>
         </select>
+        <button id="addStudentBtn" class="btn btn-primary">+ 학생 추가</button>
+        <button id="bulkImportBtn" class="btn">CSV 일괄등록</button>
       </div>
-      <div class="form-row"><label>증상 *</label><textarea name="symptom" rows="2" required>${esc(existing?.symptom)}</textarea></div>
-      <div class="grid2">
-        <div class="form-row"><label>상태</label>
-          <select name="status">${statuses.map(s => `<option value="${s}" ${(existing?.status || '접수') === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
-        <div class="form-row"><label>처리업체</label><input type="text" name="contractor" value="${esc(existing?.contractor)}"></div>
+      <div id="studentsTableWrap"></div>
+    </section>
+
+    <!-- 교사현황 -->
+    <section id="view-teachers" class="view hidden"></section>
+
+    <!-- 월별 생일자 -->
+    <section id="view-birthdays" class="view hidden">
+      <h2>월별 생일자</h2>
+      <div class="toolbar">
+        <label>월</label>
+        <select id="birthdayMonthSelect"></select>
       </div>
-      <div class="grid2">
-        <div class="form-row"><label>처리일시</label><input type="datetime-local" name="handled_date" value="${existing?.handled_date || ''}"></div>
-        <div class="form-row"><label>비용(원)</label><input type="number" name="cost" value="${existing?.cost || 0}"></div>
+      <div class="panel">
+        <div id="birthdayListWrap"></div>
       </div>
-      <div class="form-row"><label>고장원인</label><textarea name="cause" rows="2">${esc(existing?.cause)}</textarea></div>
-      <div class="form-row"><label>조치내용</label><textarea name="action_taken" rows="2">${esc(existing?.action_taken)}</textarea></div>
-      <div class="form-row"><label>교체 부품</label><input type="text" name="parts" value="${esc(existing?.parts)}" placeholder="예: 도어 롤러, 브레이크 라이닝 (여러 개는 쉼표로 구분)"></div>
-      <div class="form-row"><label>비용처리여부</label>
-        <select name="cost_status">${costStatuses.map(s => `<option value="${s}" ${(existing?.cost_status || '미지급') === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
-      <div class="form-row"><label>비고</label><textarea name="memo" rows="2">${esc(existing?.memo)}</textarea></div>
-      </fieldset>
-      <div class="modal-actions">
-        <div>${isAdmin && isEdit ? `<button type="button" class="btn btn-danger" onclick="deleteRepair(${existing.id})">삭제</button>` : '<span></span>'}</div>
-        <div>
-          <button type="button" class="btn" onclick="closeModal()">${isAdmin ? '취소' : '닫기'}</button>
-          ${isAdmin ? '<button type="submit" class="btn btn-primary">저장</button>' : ''}
-        </div>
+    </section>
+
+    <!-- 연간계획 -->
+    <section id="view-yearlyplan" class="view hidden">
+      <h2>연간계획</h2>
+      <div class="toolbar">
+        <label>연도</label>
+        <select id="yearlyPlanYearSelect"></select>
       </div>
-    </form>
-  `);
-}
+      <div id="yearlyPlanTableWrap" class="table-scroll"></div>
+    </section>
 
-function submitRepairForm(e, id) {
-  e.preventDefault();
-  if (!isAdmin) { alert('관리자 로그인 후 이용해주세요.'); return false; }
-  const fd = new FormData(e.target);
-  const body = Object.fromEntries(fd.entries());
-  body.cost = Number(body.cost || 0);
-  body.elevator_id = Number(body.elevator_id);
-  if (id) {
-    const idx = state.repairs.findIndex(r => r.id === id);
-    state.repairs[idx] = { ...state.repairs[idx], ...body };
-  } else {
-    state.repairs.push({ id: state.nextRepairId++, ...body });
-  }
-  saveData(state);
-  closeModal();
-  renderRepairsTable();
-  if (currentView === 'dashboard') renderDashboard();
-  return false;
-}
+    <!-- 반 관리 -->
+    <section id="view-classes" class="view hidden"></section>
 
-function deleteRepair(id) {
-  if (!isAdmin) { alert('관리자 로그인 후 이용해주세요.'); return; }
-  if (!confirm('이 이력을 삭제하시겠습니까?')) return;
-  state.repairs = state.repairs.filter(r => r.id !== id);
-  saveData(state);
-  closeModal();
-  renderRepairsTable();
-}
-
-function exportRepairsCsv() {
-  const rows = filteredRepairs();
-  const header = ['ID', '동', '호기', '승강기명', '고장위치(층)', '신고일시', '신고자', '도착시간', '고장유형', '증상', '상태', '처리업체', '처리일시', '고장원인', '조치내용', '교체부품', '비용', '비용처리여부', '비고'];
-  const lines = [header];
-  rows.forEach(r => {
-    const e = findElevator(r.elevator_id) || {};
-    lines.push([r.id, e.building, e.unit_no, e.name, r.fault_floor, r.report_date, r.reporter, r.arrival_time, r.issue_type, r.symptom, r.status, r.contractor, r.handled_date, r.cause, r.action_taken, r.parts, r.cost, r.cost_status, r.memo]);
-  });
-  const csv = '﻿' + lines.map(row => row.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
-  downloadFile(csv, 'repairs.csv', 'text/csv;charset=utf-8');
-}
-
-/* ============== 승강기 관리 ============== */
-let selectedElevatorIds = new Set();
-
-function renderElevators() {
-  selectedElevatorIds = new Set();
-  document.getElementById('view-elevators').innerHTML = `
-    <div class="toolbar">
-      <h2>승강기 관리 (총 ${state.elevators.length}대)</h2>
-      <div>
-        ${isAdmin ? `<button class="btn btn-danger" style="text-decoration:none;background:#fee2e2;" onclick="deleteSelectedElevators()">선택 삭제</button>` : ''}
-        ${isAdmin ? `<button class="btn btn-primary" onclick="openElevatorForm()">+ 승강기 추가</button>` : ''}
+    <!-- 예배정보입력 -->
+    <section id="view-worship" class="view hidden">
+      <h2>예배정보입력</h2>
+      <div class="toolbar">
+        <label>연도</label>
+        <select id="worshipYearSelect"></select>
+        <label>주일 날짜</label>
+        <select id="worshipDate" class="sunday-select"></select>
+        <button id="loadWorshipBtn" class="btn">불러오기</button>
       </div>
-    </div>
-    <div class="panel table-wrap">
-      <table>
-        <thead><tr>${isAdmin ? `<th style="width:32px;"><input type="checkbox" id="elevators-select-all" onchange="toggleSelectAllElevators(this.checked)"></th>` : ''}<th>동</th><th>호기</th><th>명칭</th><th>위치</th><th>제조사</th><th>설치일</th><th>상태</th><th>이력</th></tr></thead>
-        <tbody id="elevators-tbody"></tbody>
-      </table>
-    </div>
-  `;
-  renderElevatorsTable();
-}
+      <div id="worshipBody"></div>
+    </section>
 
-function renderElevatorsTable() {
-  const tbody = document.getElementById('elevators-tbody');
-  const rows = sortedElevators();
-  tbody.innerHTML = rows.map(e => `
-    <tr>
-      ${isAdmin ? `<td onclick="event.stopPropagation()"><input type="checkbox" class="elevator-check" ${selectedElevatorIds.has(e.id) ? 'checked' : ''} onchange="toggleElevatorSelect(${e.id}, this.checked)"></td>` : ''}
-      <td onclick="openElevatorForm(${e.id})">${esc(e.building)}</td>
-      <td onclick="openElevatorForm(${e.id})">${esc(e.unit_no)}</td>
-      <td onclick="openElevatorForm(${e.id})">${esc(e.name)}</td>
-      <td onclick="openElevatorForm(${e.id})">${esc(e.location) || '-'}</td>
-      <td onclick="openElevatorForm(${e.id})">${esc(e.manufacturer) || '-'}</td>
-      <td onclick="openElevatorForm(${e.id})">${esc(e.install_date) || '-'}</td>
-      <td onclick="openElevatorForm(${e.id})">${badge(e.status, e.status)}</td>
-      <td><button class="btn" style="padding:4px 8px;font-size:12px;" onclick="event.stopPropagation();viewElevatorHistory(${e.id})">이력보기</button></td>
-    </tr>
-  `).join('');
-  const selectAll = document.getElementById('elevators-select-all');
-  if (selectAll) selectAll.checked = rows.length > 0 && rows.every(e => selectedElevatorIds.has(e.id));
-}
-
-function toggleElevatorSelect(id, checked) {
-  if (checked) selectedElevatorIds.add(id); else selectedElevatorIds.delete(id);
-}
-
-function toggleSelectAllElevators(checked) {
-  const rows = sortedElevators();
-  if (checked) rows.forEach(e => selectedElevatorIds.add(e.id));
-  else rows.forEach(e => selectedElevatorIds.delete(e.id));
-  renderElevatorsTable();
-}
-
-function deleteSelectedElevators() {
-  if (!isAdmin) { alert('관리자 로그인 후 이용해주세요.'); return; }
-  if (selectedElevatorIds.size === 0) { alert('삭제할 승강기를 먼저 선택해주세요.'); return; }
-  const hasRepairs = state.repairs.some(r => selectedElevatorIds.has(r.elevator_id));
-  const msg = hasRepairs
-    ? `선택한 승강기 ${selectedElevatorIds.size}대 중 일부에는 등록된 고장·수리 이력이 있습니다. 승강기와 관련 이력을 모두 삭제하시겠습니까?`
-    : `선택한 승강기 ${selectedElevatorIds.size}대를 삭제하시겠습니까?`;
-  if (!confirm(msg)) return;
-  state.elevators = state.elevators.filter(e => !selectedElevatorIds.has(e.id));
-  state.repairs = state.repairs.filter(r => !selectedElevatorIds.has(r.elevator_id));
-  selectedElevatorIds = new Set();
-  saveData(state);
-  renderElevatorsTable();
-}
-
-function viewElevatorHistory(id) {
-  repairFilters = { building: '', status: '', from: '', to: '', issue_type: '', cost_status: '', parts: '', elevator_id: id };
-  switchView('repairs');
-}
-
-function openElevatorForm(id) {
-  const existing = id ? state.elevators.find(e => e.id === id) : null;
-  const isEdit = !!existing;
-  const statuses = ['운행중', '점검중', '고장', '폐지'];
-  openModal(`
-    <h3>${isAdmin ? (isEdit ? '승강기 정보 수정' : '승강기 추가') : '승강기 상세보기'}</h3>
-    <form id="elevator-form" onsubmit="return submitElevatorForm(event, ${isEdit ? existing.id : 'null'})">
-      <fieldset ${isAdmin ? '' : 'disabled'} style="border:none;padding:0;margin:0;">
-      <div class="grid2">
-        <div class="form-row"><label>동 *</label><input type="text" name="building" required value="${esc(existing?.building)}" placeholder="예: 201 또는 외부"></div>
-        <div class="form-row"><label>호기 *</label><input type="text" name="unit_no" required value="${esc(existing?.unit_no)}" placeholder="예: 1"></div>
+    <!-- 주간보고서 (읽기 전용 결과 확인) -->
+    <section id="view-report" class="view hidden">
+      <h2>주간보고서</h2>
+      <div class="toolbar">
+        <label>연도</label>
+        <select id="reportYearSelect"></select>
+        <label>주일 날짜</label>
+        <select id="reportDate" class="sunday-select"></select>
+        <button id="loadReportBtn" class="btn">불러오기</button>
       </div>
-      <div class="form-row"><label>명칭 *</label><input type="text" name="name" required value="${esc(existing?.name)}" placeholder="예: 201동 1호기"></div>
-      <div class="form-row"><label>위치</label><input type="text" name="location" value="${esc(existing?.location)}"></div>
-      <div class="grid2">
-        <div class="form-row"><label>제조사</label><input type="text" name="manufacturer" value="${esc(existing?.manufacturer)}"></div>
-        <div class="form-row"><label>모델명</label><input type="text" name="model" value="${esc(existing?.model)}"></div>
+      <div id="reportBody"></div>
+    </section>
+
+    <!-- 연간출석부 -->
+    <section id="view-annual" class="view hidden">
+      <h2>연간출석부</h2>
+      <div class="toolbar">
+        <label>연도</label>
+        <select id="annualYearSelect"></select>
+        <label>반</label>
+        <select id="annualClassSelect"></select>
       </div>
-      <div class="grid2">
-        <div class="form-row"><label>설치일</label><input type="date" name="install_date" value="${existing?.install_date || ''}"></div>
-        <div class="form-row"><label>정원/용량</label><input type="text" name="capacity" value="${esc(existing?.capacity)}" placeholder="예: 15인승"></div>
+      <div id="annualTableWrap" class="table-scroll"></div>
+    </section>
+
+    <!-- 통계 -->
+    <section id="view-stats" class="view hidden">
+      <h2>출석 통계</h2>
+      <div class="stats-grid">
+        <div class="panel"><h3>반별 출석률</h3><canvas id="chartByClass"></canvas></div>
+        <div class="panel"><h3>학년별 출석률</h3><canvas id="chartByGrade"></canvas></div>
+        <div class="panel wide"><h3>월별 전체 출석 추이</h3><canvas id="chartByMonth"></canvas></div>
       </div>
-      <div class="form-row"><label>상태</label>
-        <select name="status">${statuses.map(s => `<option ${(existing?.status || '운행중') === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
-      <div class="form-row"><label>비고</label><textarea name="memo" rows="2">${esc(existing?.memo)}</textarea></div>
-      </fieldset>
-      <div class="modal-actions">
-        <div>${isAdmin && isEdit ? `<button type="button" class="btn btn-danger" onclick="deleteElevator(${existing.id})">삭제</button>` : '<span></span>'}</div>
-        <div>
-          <button type="button" class="btn" onclick="closeModal()">${isAdmin ? '취소' : '닫기'}</button>
-          ${isAdmin ? '<button type="submit" class="btn btn-primary">저장</button>' : ''}
-        </div>
+    </section>
+
+    <!-- 재적변동이력 -->
+    <section id="view-history" class="view hidden">
+      <h2>재적 변동 이력</h2>
+      <div class="toolbar">
+        <button id="addHistoryBtn" class="btn btn-primary">+ 변동 기록 추가</button>
+        <button id="bulkDeleteHistoryBtn" class="btn btn-danger" disabled>선택 삭제</button>
       </div>
-    </form>
-  `);
-}
+      <div id="historyTableWrap"></div>
+    </section>
 
-function submitElevatorForm(e, id) {
-  e.preventDefault();
-  if (!isAdmin) { alert('관리자 로그인 후 이용해주세요.'); return false; }
-  const fd = new FormData(e.target);
-  const body = Object.fromEntries(fd.entries());
-  const dup = state.elevators.find(x => x.building === body.building && x.unit_no === body.unit_no && x.id !== id);
-  if (dup) {
-    alert('이미 동일한 동/호기의 승강기가 존재합니다.');
-    return false;
-  }
-  if (id) {
-    const idx = state.elevators.findIndex(x => x.id === id);
-    state.elevators[idx] = { ...state.elevators[idx], ...body };
-  } else {
-    const newId = Math.max(0, ...state.elevators.map(x => x.id)) + 1;
-    state.elevators.push({ id: newId, ...body });
-  }
-  saveData(state);
-  closeModal();
-  renderElevatorsTable();
-  return false;
-}
+    <!-- 출석 가져오기 (과거 데이터 일괄 등록) -->
+    <section id="view-import" class="view hidden"></section>
 
-function deleteElevator(id) {
-  if (!isAdmin) { alert('관리자 로그인 후 이용해주세요.'); return; }
-  const hasRepairs = state.repairs.some(r => r.elevator_id === id);
-  const msg = hasRepairs
-    ? '이 승강기에는 등록된 고장·수리 이력이 있습니다. 승강기와 관련 이력을 모두 삭제하시겠습니까?'
-    : '이 승강기를 삭제하시겠습니까?';
-  if (!confirm(msg)) return;
-  state.elevators = state.elevators.filter(e => e.id !== id);
-  state.repairs = state.repairs.filter(r => r.elevator_id !== id);
-  saveData(state);
-  closeModal();
-  renderElevatorsTable();
-}
+  </main>
+</div>
 
-/* ============== 승강기 메모 ==============
-   고장·수리 이력으로 등록하기 애매한 승강기 관련 메모(민원 내용, 특이사항, 안내 이력 등)를
-   날짜와 함께 자유롭게 기록. 최신 날짜순으로 정렬해서 보여주고, 내용으로 검색 가능.
-*/
-let memoFilters = { q: '' };
+<!-- 공용 모달 -->
+<div id="modalRoot" class="modal-root hidden"></div>
 
-function renderMemos() {
-  document.getElementById('view-memos').innerHTML = `
-    <div class="toolbar">
-      <h2>승강기 메모 (총 ${state.memos.length}건)</h2>
-      <div>
-        ${isAdmin ? `<button class="btn btn-primary" onclick="openMemoForm()">+ 메모 등록</button>` : ''}
-      </div>
-    </div>
-    <div class="panel">
-      <div class="filters">
-        <div>
-          <label style="display:block;font-size:11px;color:#6b7280;margin-bottom:3px;">내용 검색</label>
-          <input id="f-memo-q" type="text" placeholder="메모 내용으로 검색" value="${esc(memoFilters.q)}" oninput="applyMemoFilters()">
-        </div>
-      </div>
-    </div>
-    <div id="memos-list"></div>
-  `;
-  renderMemosList();
-  const q = document.getElementById('f-memo-q');
-  if (q) q.focus({ preventScroll: true });
-}
-
-function applyMemoFilters() {
-  const input = document.getElementById('f-memo-q');
-  memoFilters.q = input ? input.value : '';
-  renderMemosList();
-  // 검색어 입력 중 목록이 다시 그려져도 커서가 입력창에 그대로 남아있도록 포커스를 복원
-  const q = document.getElementById('f-memo-q');
-  if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); }
-}
-
-function filteredMemos() {
-  const q = (memoFilters.q || '').trim().toLowerCase();
-  return [...state.memos]
-    .filter(m => !q || (m.content || '').toLowerCase().includes(q))
-    .sort((a, b) => {
-      if (a.date !== b.date) return (b.date || '').localeCompare(a.date || '');
-      return b.id - a.id;
-    });
-}
-
-function renderMemosList() {
-  const list = document.getElementById('memos-list');
-  if (!list) return;
-  const rows = filteredMemos();
-  if (rows.length === 0) {
-    list.innerHTML = `<div class="panel"><div class="empty">${memoFilters.q ? '검색 결과가 없습니다.' : '등록된 메모가 없습니다.'}</div></div>`;
-    return;
-  }
-  list.innerHTML = rows.map(m => `
-    <div class="panel" style="cursor:pointer;" onclick="openMemoForm(${m.id})">
-      <div style="font-weight:600;color:#2563eb;margin-bottom:8px;">${esc(m.date) || '-'}</div>
-      <div style="white-space:pre-wrap;font-size:14px;line-height:1.6;color:#111;">${esc(m.content)}</div>
-    </div>
-  `).join('');
-}
-
-function openMemoForm(id) {
-  const existing = id ? state.memos.find(m => m.id === id) : null;
-  const isEdit = !!existing;
-  const today = new Date().toISOString().slice(0, 10);
-  openModal(`
-    <h3>${isAdmin ? (isEdit ? '메모 수정' : '메모 등록') : '메모 상세보기'}</h3>
-    <form id="memo-form" onsubmit="return submitMemoForm(event, ${isEdit ? existing.id : 'null'})">
-      <fieldset ${isAdmin ? '' : 'disabled'} style="border:none;padding:0;margin:0;">
-      <div class="form-row"><label>날짜 *</label><input type="date" name="date" required value="${existing ? existing.date : today}"></div>
-      <div class="form-row"><label>메모 내용 *</label><textarea name="content" rows="6" required placeholder="예: 205동 2호기 관련 입주민 민원, 향후 점검 시 참고사항 등">${esc(existing?.content)}</textarea></div>
-      </fieldset>
-      <div class="modal-actions">
-        <div>${isAdmin && isEdit ? `<button type="button" class="btn btn-danger" onclick="deleteMemo(${existing.id})">삭제</button>` : '<span></span>'}</div>
-        <div>
-          <button type="button" class="btn" onclick="closeModal()">${isAdmin ? '취소' : '닫기'}</button>
-          ${isAdmin ? '<button type="submit" class="btn btn-primary">저장</button>' : ''}
-        </div>
-      </div>
-    </form>
-  `);
-}
-
-function submitMemoForm(e, id) {
-  e.preventDefault();
-  if (!isAdmin) { alert('관리자 로그인 후 이용해주세요.'); return false; }
-  const fd = new FormData(e.target);
-  const body = Object.fromEntries(fd.entries());
-  if (id) {
-    const idx = state.memos.findIndex(m => m.id === id);
-    state.memos[idx] = { ...state.memos[idx], ...body };
-  } else {
-    state.memos.push({ id: state.nextMemoId++, ...body });
-  }
-  saveData(state);
-  closeModal();
-  renderMemosList();
-  return false;
-}
-
-function deleteMemo(id) {
-  if (!isAdmin) { alert('관리자 로그인 후 이용해주세요.'); return; }
-  if (!confirm('이 메모를 삭제하시겠습니까?')) return;
-  state.memos = state.memos.filter(m => m.id !== id);
-  saveData(state);
-  closeModal();
-  renderMemosList();
-}
-
-/* ============== 백업/복원 ============== */
-async function exportBackup() {
-  const json = JSON.stringify(state, null, 2);
-  const today = new Date().toISOString().slice(0, 10);
-  const filename = `승강기관리_백업_${today}.json`;
-
-  // 저장 위치를 직접 선택할 수 있는 브라우저(크롬/엣지 등)에서는 저장 위치 선택창을 띄움
-  if (window.showSaveFilePicker) {
-    try {
-      const handle = await window.showSaveFilePicker({
-        suggestedName: filename,
-        types: [{ description: 'JSON 백업 파일', accept: { 'application/json': ['.json'] } }]
-      });
-      const writable = await handle.createWritable();
-      await writable.write(json);
-      await writable.close();
-      alert('백업 파일을 저장했습니다.');
-      return;
-    } catch (err) {
-      if (err && err.name === 'AbortError') return; // 사용자가 저장을 취소함
-      console.error(err);
-      alert('저장 위치 선택 중 오류가 발생하여 기본 다운로드로 저장합니다.');
-    }
-  }
-
-  // 저장 위치 선택을 지원하지 않는 브라우저는 기존 방식(다운로드 폴더 저장)으로 대체
-  downloadFile(json, filename, 'application/json;charset=utf-8');
-}
-
-function importBackup(event) {
-  if (!isAdmin) { alert('관리자 로그인 후 이용해주세요.'); event.target.value = ''; return; }
-  const file = event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const data = JSON.parse(e.target.result);
-      if (!data.elevators || !data.repairs) throw new Error('형식이 올바르지 않습니다.');
-      if (!confirm('이 파일을 불러오면 온라인 저장소의 데이터(모든 기기/브라우저에서 공유 중인 데이터)가 이 백업 파일 내용으로 덮어써집니다. 계속하시겠습니까?')) return;
-      state = data;
-      if (!state.nextRepairId) {
-        state.nextRepairId = Math.max(0, ...state.repairs.map(r => r.id)) + 1;
-      }
-      ensureMemosField(state);
-      saveData(state);
-      switchView(currentView);
-      alert('데이터를 불러왔습니다.');
-    } catch (err) {
-      alert('파일을 불러오지 못했습니다: ' + err.message);
-    }
-    event.target.value = '';
-  };
-  reader.readAsText(file, 'UTF-8');
-}
-
-function downloadFile(content, filename, mime) {
-  const blob = new Blob([content], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-/* ============== 시작 ============== */
-switchView('dashboard');
-updateAuthUI();
-
-/* ============== 로그인 상태 감지 ==============
-   - 로그인/로그아웃 시 자동으로 isAdmin 값을 갱신하고, 현재 화면을 다시 그려서
-     등록/수정/삭제 버튼이 즉시 나타나거나 사라지도록 함
-*/
-auth.onAuthStateChanged((user) => {
-  isAdmin = !!user;
-  updateAuthUI();
-  switchView(currentView);
-});
-
-/* ============== Firebase 실시간 동기화 ==============
-   - 온라인 저장소(Firestore)에 데이터가 이미 있으면 그 내용으로 화면을 갱신(다른 기기에서 입력한 내용 포함)
-   - 온라인 저장소가 비어있으면(최초 1회) 지금 이 브라우저의 데이터를 온라인 저장소로 올려 초기화
-   - 이후에는 다른 기기/브라우저에서 데이터가 바뀔 때마다 자동으로 화면이 갱신됨
-*/
-stateDocRef.onSnapshot((doc) => {
-  if (doc.exists) {
-    state = ensureMemosField(doc.data());
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    switchView(currentView);
-  } else {
-    stateDocRef.set(state).catch(err => {
-      console.error('Firestore 최초 저장 실패:', err);
-    });
-  }
-}, (err) => {
-  console.error('Firestore 연결 오류:', err);
-});
-</script>
+<script type="module" src="js/app.js"></script>
 </body>
 </html>
