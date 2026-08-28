@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>청소년부 재적관리 프로그램</title>
+
+<!-- 파비콘 / 홈 화면 아이콘 -->
+<link rel="icon" href="favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png" />
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#1e3a5f" />
+
+<!-- iOS: 홈 화면에 추가 시 앱처럼(주소창 없이) 실행되도록 -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="재적관리" />
+
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
+<link rel="stylesheet" href="css/style.css" />
+<!-- Chart.js를 외부 CDN 대신 저장소에 직접 포함시켜서 로드합니다.
+     (일부 네트워크/방화벽 환경에서 cdnjs 등 외부 CDN 접속이 막혀 "차트 라이브러리를
+     불러오지 못했습니다" 오류가 발생하는 문제를 근본적으로 없애기 위함) -->
+<script src="js/vendor/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ===== 로그인 화면 ===== -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-box">
+    <h1>🙌 청소년부 재적관리</h1>
+    <p class="sub">교사/부장 계정으로 로그인해주세요.</p>
+    <form id="loginForm">
+      <label>이메일</label>
+      <input type="email" id="loginEmail" required placeholder="you@example.com" />
+      <label>비밀번호</label>
+      <input type="password" id="loginPassword" required placeholder="비밀번호" />
+      <button type="submit" class="btn btn-primary btn-block">로그인</button>
+    </form>
+    <p id="loginError" class="error-text"></p>
+    <details class="admin-hint">
+      <summary>처음 사용하시나요?</summary>
+      <p>관리자(부장님) 계정이 없다면 Firebase 콘솔 &gt; Authentication에서 먼저 계정을 만들고, Firestore의 <code>users</code> 컬렉션에 role을 <code>admin</code>으로 등록해주세요. 자세한 방법은 README.md를 참고하세요.</p>
+    </details>
+  </div>
+</div>
+
+<!-- ===== 메인 앱 ===== -->
+<div id="app" class="app hidden">
+  <header class="topbar">
+    <div class="topbar-top">
+      <div class="topbar-title">🙌 청소년부 재적관리</div>
+      <div class="topbar-user">
+        <span id="userLabel"></span>
+        <button id="logoutBtn" class="btn btn-ghost">로그아웃</button>
+      </div>
+    </div>
+    <nav id="mainNav" class="main-nav">
+      <button data-view="dashboard" class="nav-btn active">🏠 대시보드</button>
+      <button data-view="report" class="nav-btn">📝 주간보고서</button>
+      <button data-view="annual" class="nav-btn">📅 연간출석부</button>
+      <button data-view="attendance" class="nav-btn">✅ 출석체크</button>
+      <button data-view="worship" class="nav-btn">🎵 예배정보입력</button>
+      <button data-view="students" class="nav-btn">👥 재적부</button>
+      <button data-view="teachers" class="nav-btn">🧑‍🏫 교사현황</button>
+      <button data-view="birthdays" class="nav-btn">🎂 월별 생일자</button>
+      <button data-view="yearlyplan" class="nav-btn">🗓️ 연간계획</button>
+      <button data-view="classes" class="nav-btn">🗂️ 반 관리</button>
+      <button data-view="history" class="nav-btn">🔄 재적변동이력</button>
+      <button data-view="stats" class="nav-btn">📊 통계</button>
+      <button data-view="import" class="nav-btn">📥 출석 가져오기</button>
+    </nav>
+  </header>
+
+  <main class="content">
+
+    <!-- 대시보드 -->
+    <section id="view-dashboard" class="view">
+      <h2>대시보드</h2>
+      <div class="card-grid" id="dashboardCards"></div>
+      <div class="panel">
+        <h3>이번 주 반별 출석 현황</h3>
+        <div id="dashboardWeekTable"></div>
+      </div>
+      <div class="panel">
+        <h3>⚠️ 장기결석 학생 (최근 3주 연속 결석)</h3>
+        <div id="absenteeList" class="list"></div>
+      </div>
+    </section>
+
+    <!-- 출석체크 -->
+    <section id="view-attendance" class="view hidden">
+      <h2>주일 출석체크</h2>
+      <div class="toolbar">
+        <label>연도</label>
+        <select id="attendanceYearSelect"></select>
+        <label>주일 날짜</label>
+        <select id="attendanceDate" class="sunday-select"></select>
+        <label>반 선택</label>
+        <select id="attendanceClassSelect"></select>
+        <button id="loadAttendanceBtn" class="btn">불러오기</button>
+      </div>
+      <div id="attendanceTableWrap"></div>
+      <p id="attendanceSummaryLine" class="attendance-summary-line"></p>
+      <button id="saveAttendanceBtn" class="btn btn-primary">출석 저장</button>
+      <p id="attendanceSaveMsg" class="save-msg"></p>
+    </section>
+
+    <!-- 재적부 -->
+    <section id="view-students" class="view hidden">
+      <h2>재적부 (학생 명단)</h2>
+      <div class="toolbar">
+        <select id="studentsClassFilter"><option value="all">전체 반</option></select>
+        <select id="studentsStatusFilter">
+          <option value="all">전체 상태</option>
+          <option value="active">재적</option>
+          <option value="new">새친구</option>
+          <option value="hold">보류</option>
+          <option value="removed">제적</option>
+          <option value="graduated">졸업</option>
+        </select>
+        <button id="addStudentBtn" class="btn btn-primary">+ 학생 추가</button>
+        <button id="bulkImportBtn" class="btn">CSV 일괄등록</button>
+        <button id="studentsBulkGraduateBtn" class="btn" disabled>선택 일괄 졸업처리</button>
+      </div>
+      <div id="studentsTableWrap"></div>
+    </section>
+
+    <!-- 교사현황 -->
+    <section id="view-teachers" class="view hidden"></section>
+
+    <!-- 월별 생일자 -->
+    <section id="view-birthdays" class="view hidden">
+      <h2>월별 생일자</h2>
+      <div class="toolbar">
+        <label>월</label>
+        <select id="birthdayMonthSelect"></select>
+      </div>
+      <div class="panel">
+        <div id="birthdayListWrap"></div>
+      </div>
+    </section>
+
+    <!-- 연간계획 -->
+    <section id="view-yearlyplan" class="view hidden">
+      <h2>연간계획</h2>
+      <div class="toolbar">
+        <label>연도</label>
+        <select id="yearlyPlanYearSelect"></select>
+      </div>
+      <div id="yearlyPlanTableWrap" class="table-scroll"></div>
+    </section>
+
+    <!-- 반 관리 -->
+    <section id="view-classes" class="view hidden"></section>
+
+    <!-- 예배정보입력 -->
+    <section id="view-worship" class="view hidden">
+      <h2>예배정보입력</h2>
+      <div class="toolbar">
+        <label>연도</label>
+        <select id="worshipYearSelect"></select>
+        <label>주일 날짜</label>
+        <select id="worshipDate" class="sunday-select"></select>
+        <button id="loadWorshipBtn" class="btn">불러오기</button>
+      </div>
+      <div id="worshipBody"></div>
+    </section>
+
+    <!-- 주간보고서 (읽기 전용 결과 확인) -->
+    <section id="view-report" class="view hidden">
+      <h2>주간보고서</h2>
+      <div class="toolbar">
+        <label>연도</label>
+        <select id="reportYearSelect"></select>
+        <label>주일 날짜</label>
+        <select id="reportDate" class="sunday-select"></select>
+        <button id="loadReportBtn" class="btn">불러오기</button>
+        <button id="printReportBtn" class="btn">🖨️ 인쇄 (A4 1장)</button>
+      </div>
+      <div id="reportBody"></div>
+      <div id="reportPrintArea" class="print-only"></div>
+    </section>
+
+    <!-- 연간출석부 -->
+    <section id="view-annual" class="view hidden">
+      <h2>연간출석부</h2>
+      <div class="toolbar">
+        <label>연도</label>
+        <select id="annualYearSelect"></select>
+        <label>반</label>
+        <select id="annualClassSelect"></select>
+      </div>
+      <div id="annualTableWrap" class="table-scroll"></div>
+    </section>
+
+    <!-- 통계 -->
+    <section id="view-stats" class="view hidden">
+      <h2>출석 통계</h2>
+      <div class="stats-grid">
+        <div class="panel"><h3>반별 출석률</h3><canvas id="chartByClass"></canvas></div>
+        <div class="panel"><h3>학년별 출석률</h3><canvas id="chartByGrade"></canvas></div>
+        <div class="panel wide"><h3>월별 전체 출석 추이</h3><canvas id="chartByMonth"></canvas></div>
+      </div>
+    </section>
+
+    <!-- 재적변동이력 -->
+    <section id="view-history" class="view hidden">
+      <h2>재적 변동 이력</h2>
+      <div class="toolbar">
+        <button id="addHistoryBtn" class="btn btn-primary">+ 변동 기록 추가</button>
+        <button id="bulkDeleteHistoryBtn" class="btn btn-danger" disabled>선택 삭제</button>
+      </div>
+      <div id="historyTableWrap"></div>
+    </section>
+
+    <!-- 출석 가져오기 (과거 데이터 일괄 등록) -->
+    <section id="view-import" class="view hidden"></section>
+
+  </main>
+</div>
+
+<!-- 공용 모달 -->
+<div id="modalRoot" class="modal-root hidden"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
