@@ -225,6 +225,8 @@ tr:hover td { background: #f8f3e7; }
 /* ---------- 재적부: 학생 프로필 보기 모달 ---------- */
 .student-name-link { color: var(--primary); text-decoration: none; font-weight: 600; cursor: pointer; }
 .student-name-link:hover { text-decoration: underline; }
+.class-name-link { color: var(--primary); text-decoration: none; font-weight: 600; cursor: pointer; }
+.class-name-link:hover { text-decoration: underline; }
 
 /* 재적부 테이블: 이름 앞 작은 프로필 사진(있으면 사진, 없으면 아이콘) */
 .student-name-cell { display: flex; align-items: center; gap: 8px; white-space: nowrap; }

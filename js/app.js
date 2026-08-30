@@ -30,7 +30,7 @@ const viewInitializers = {
   teachers: initTeachersView
 };
 
-async function showView(name) {
+export async function showView(name) {
   $all(".view").forEach(v => v.classList.add("hidden"));
   $all(".nav-btn").forEach(b => b.classList.toggle("active", b.dataset.view === name));
   const section = $(`#view-${name}`);
@@ -40,6 +40,27 @@ async function showView(name) {
   } catch (err) {
     console.error(`${name} 화면 로딩 실패`, err);
   }
+}
+
+// 대시보드의 "이번 주 반별 출석 현황"에서 반 이름을 클릭했을 때, 출석체크 화면으로 이동하면서
+// 그 반과 그 주일 날짜를 자동으로 선택해줌.
+export async function goToAttendance(classId, date) {
+  await showView("attendance");
+  const yearSelect = $("#attendanceYearSelect");
+  const year = String(new Date(date).getFullYear());
+  if (yearSelect.value !== year && yearSelect.querySelector(`option[value="${year}"]`)) {
+    yearSelect.value = year;
+    yearSelect.dispatchEvent(new Event("change"));
+  }
+  const dateSelect = $("#attendanceDate");
+  if (dateSelect.querySelector(`option[value="${date}"]`)) {
+    dateSelect.value = date;
+  }
+  const classSelect = $("#attendanceClassSelect");
+  if (classSelect.querySelector(`option[value="${classId}"]`)) {
+    classSelect.value = classId;
+  }
+  $("#loadAttendanceBtn").click();
 }
 
 function setupNav() {

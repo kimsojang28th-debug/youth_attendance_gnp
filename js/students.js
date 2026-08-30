@@ -451,7 +451,7 @@ function openStudentModal(student = null) {
   // "실제 학년(예정 반)"을 별도로 기록해서 나중에 재적 전환 시 어느 반으로 보내야 할지 알 수 있게 함.
   // 반대로 상태가 새친구가 아니면(재적/보류/제적) 새친구반은 애초에 선택지에서 빼서, 실수로
   // 재적 학생이 새친구반에 남는 일이 없도록 함.
-  function syncClassIdByStatus() {
+  function syncClassIdByStatus(isInitial = false) {
     const classIdSelect = $("#f_classId");
     const plannedWrap = $("#plannedClassWrap");
     if (!classIdSelect || !plannedWrap) return;
@@ -461,11 +461,18 @@ function openStudentModal(student = null) {
       plannedWrap.classList.remove("hidden");
     } else {
       const options = visible.filter(c => c.id !== "newcomer");
-      // 방금 상태를 새친구 -> 재적 등으로 바꾼 경우, 미리 지정해둔 "실제 학년"이 있으면 그 반을
-      // 기본으로 골라줘서 담당 선생님이 다시 고르지 않아도 되게 함(담당 반 접근권한이 있을 때만).
-      const preferId = (!classIdSelect.value || classIdSelect.value === "newcomer")
-        ? ($("#f_plannedClassId")?.value || student?.plannedClassId || "")
-        : classIdSelect.value;
+      // 최초로 모달을 여는 시점(isInitial)에는 반 <select>가 아직 비어있는 채로 새로 만들어진
+      // 상태라 classIdSelect.value가 항상 빈 문자열이다. 이때 무조건 "실제 학년(예정 반)"
+      // 값으로만 기본값을 정하면, 수정하려는 기존 학생의 원래 반(student.classId)이 무시되고
+      // 옵션 목록의 첫 번째 반(중1)이 그냥 브라우저 기본 선택으로 남아버려서, 학생 정보를
+      // 수정할 때마다 반이 항상 "중1"로 보이는 문제가 있었다. 그래서 최초 오픈 시에는 수정 중인
+      // 학생의 현재 반(student.classId)을 최우선으로 사용하고, 그 외(상태를 새친구 -> 재적 등으로
+      // 방금 바꾼 경우)에는 기존 로직대로 예정 반/현재 선택값을 사용한다.
+      const preferId = isInitial
+        ? (student && student.classId && student.classId !== "newcomer" ? student.classId : (student?.plannedClassId || ""))
+        : (!classIdSelect.value || classIdSelect.value === "newcomer")
+          ? ($("#f_plannedClassId")?.value || student?.plannedClassId || "")
+          : classIdSelect.value;
       classIdSelect.disabled = false;
       classIdSelect.innerHTML = options.map(c =>
         `<option value="${c.id}" ${c.id === preferId ? "selected" : ""}>${escapeHtml(c.name)}</option>`
@@ -473,8 +480,8 @@ function openStudentModal(student = null) {
       plannedWrap.classList.add("hidden");
     }
   }
-  syncClassIdByStatus();
-  $("#f_status").onchange = syncClassIdByStatus;
+  syncClassIdByStatus(true);
+  $("#f_status").onchange = () => syncClassIdByStatus(false);
 
   // 파일 선택이든, 클립보드 붙여넣기든 동일하게 축소/미리보기 처리를 하기 위한 공용 함수
   async function setPhotoFromFile(file) {

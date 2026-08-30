@@ -4,6 +4,7 @@ import { computeLongTermAbsentees, ALERT_THRESHOLD } from "./absentee.js";
 import { buildAttendanceDetail } from "./report.js";
 import { $, escapeHtml, nearestSundayISO, friendlyFirestoreError } from "./utils.js";
 import { isAdmin, currentUser } from "./auth.js";
+import { goToAttendance } from "./app.js";
 
 export async function initDashboardView() {
   const classes = await loadClasses();
@@ -68,21 +69,37 @@ export async function initDashboardView() {
   }
 
   // 새친구반도 이제 다른 반들과 동일하게 반별 출석 현황 표에 나열한다(2026-08-23부터 실제 반으로 운영).
-  // "그 중 새친구" 열은, 아직 정리되지 않고 학년반에 남아있는(과거 방식으로 등록된) 새친구 학생을
-  // 찾기 위한 참고용 열이라 새친구반 자기 자신의 줄에서는 의미가 없으므로 "-"로 표시한다.
+  // 예전에는 마지막 열에 "그 중 새친구"(학년반에 남아있는 과거 방식 새친구 학생 수)를 보여줬으나,
+  // 새친구를 별도 새친구반으로 완전히 분리한 뒤로는 이 열에 표시할 내용이 없어져서, 대신 각 반의
+  // 담당 선생님 이름을 보여주도록 변경함.
+  const teacherNamesByClassId = Object.fromEntries(
+    visible.map(c => [c.id, (c.teacherNames && c.teacherNames.length) ? c.teacherNames.join(", ") : "미배정"])
+  );
+
   const weekWrap = $("#dashboardWeekTable");
   weekWrap.innerHTML = `
     <div class="table-scroll">
     <table>
-      <thead><tr><th>반</th><th>재적</th><th>출석</th><th>출석률</th><th>그 중 새친구</th></tr></thead>
+      <thead><tr><th>반</th><th>재적</th><th>출석</th><th>출석률</th><th>담당 선생님</th></tr></thead>
       <tbody>
         ${visibleRows.map(r => `
-          <tr><td>${escapeHtml(r.className)}</td><td>${r.roster}</td><td>${r.present}</td>
-          <td>${r.roster ? Math.round((r.present / r.roster) * 1000) / 10 : 0}%</td>
-          <td class="dim-note">${r.classId === "newcomer" ? "-" : (r.newRoster ? `${r.newRoster}명 (출석 ${r.newPresent})` : "-")}</td></tr>
+          <tr>
+            <td><a href="#" class="class-name-link" data-class-id="${r.classId}">${escapeHtml(r.className)}</a></td>
+            <td>${r.roster}</td><td>${r.present}</td>
+            <td>${r.roster ? Math.round((r.present / r.roster) * 1000) / 10 : 0}%</td>
+            <td class="dim-note">${escapeHtml(teacherNamesByClassId[r.classId] || "미배정")}</td>
+          </tr>
         `).join("")}
       </tbody>
     </table>
     </div>
   `;
+
+  // 반 이름을 누르면 출석체크 화면으로 이동하면서 그 반과 이번 주 날짜가 자동으로 선택됨
+  weekWrap.querySelectorAll(".class-name-link").forEach(link => {
+    link.onclick = (e) => {
+      e.preventDefault();
+      goToAttendance(e.currentTarget.dataset.classId, date);
+    };
+  });
 }
