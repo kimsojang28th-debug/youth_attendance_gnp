@@ -11,11 +11,12 @@ import { currentUser } from "./auth.js";
 // 그 주의 절기/교회행사/주일행사/청소년부행사/비고를 등록·수정·삭제할 수 있는 화면.
 // weeklyMeta(예배정보입력)와 별개의 컬렉션(yearlyPlan)에 문서ID를 주일 날짜(YYYY-MM-DD)로 저장한다.
 
+// 청소년부 앱이므로 청소년부 행사를 가장 앞에 둠 (전체 표의 열 순서와 입력 팝업의 항목 순서가 이 배열을 따름)
 const PLAN_FIELDS = [
+  { key: "youthEvent", label: "청소년부 행사" },
   { key: "season", label: "절기" },
   { key: "churchEvent", label: "교회행사" },
-  { key: "sundayEvent", label: "주일행사" },
-  { key: "youthEvent", label: "청소년부 행사" }
+  { key: "sundayEvent", label: "주일행사" }
 ];
 
 // 2026-10-24 개편: 기본 화면을 "월별 카드"로 바꿈 - 내용이 있는 주일만 색 라벨과 함께 크게 보여주고, 빈 주일은 접어 둠.
@@ -201,14 +202,14 @@ function openPlanModal(date, entry) {
   openModal(`
     <h3>연간계획 입력</h3>
     <p style="font-size:13px;color:#6b7280;margin:0 0 10px;">${escapeHtml(date)} (주일)</p>
+    <label>청소년부 행사</label>
+    <input id="p_youthEvent" value="${escapeHtml(entry?.youthEvent || "")}" placeholder="예: 신입생 환영회, 여름수련회" />
     <label>절기</label>
     <input id="p_season" value="${escapeHtml(entry?.season || "")}" placeholder="예: 부활주일, 맥추감사주일" />
     <label>교회행사</label>
     <input id="p_churchEvent" value="${escapeHtml(entry?.churchEvent || "")}" placeholder="예: 월삭새벽예배(1), 느헤미야기도회" />
     <label>주일행사</label>
     <input id="p_sundayEvent" value="${escapeHtml(entry?.sundayEvent || "")}" placeholder="예: 찬양대 특별찬양, 학습세례입교식" />
-    <label>청소년부 행사</label>
-    <input id="p_youthEvent" value="${escapeHtml(entry?.youthEvent || "")}" placeholder="예: 신입생 환영회, 여름수련회" />
     <label>비고</label>
     <textarea id="p_note" rows="3" placeholder="추가로 남길 내용이 있으면 적어주세요.">${escapeHtml(entry?.note || "")}</textarea>
     <div class="modal-actions">
