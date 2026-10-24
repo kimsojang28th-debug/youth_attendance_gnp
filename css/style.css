@@ -565,7 +565,7 @@ tr:hover td { background: #f8f3e7; }
 td.annual-this-week { background: rgba(35, 64, 95, 0.07); }
 /* 이름 열 고정 */
 .annual-table tbody td:first-child, .annual-table tfoot td:first-child, .annual-table .annual-month-row th:first-child {
-  position: sticky; left: 0; z-index: 3; background: var(--card-bg); min-width: 128px; border-right: 1px solid var(--border);
+  position: sticky; left: 0; z-index: 3; background: var(--card-bg); min-width: 104px; border-right: 1px solid var(--border);
 }
 .annual-table .annual-month-row th:first-child { z-index: 6; background: #f2ecdc; vertical-align: middle; }
 .annual-table tr:hover td { background: transparent; }
@@ -574,11 +574,12 @@ td.annual-this-week { background: rgba(35, 64, 95, 0.07); }
 .annual-sum { font-weight: 800; text-align: center; }
 .annual-rate { text-align: center; color: var(--text-muted); font-weight: 600; min-width: 56px; }
 /* 반 헤더 / 소계 / 전체 합계 */
-.annual-class-row td { background: var(--card-beige); border-bottom: 1px solid #d9cdb0; cursor: pointer; font-size: 13.5px; }
-.annual-class-row td:first-child { background: var(--card-beige); }
-.annual-class-row .annual-class-name { white-space: nowrap; }
-.annual-class-row .dim-note { margin-left: 6px; font-weight: 400; }
+.annual-class-row td, .annual-class-row td:first-child { background: var(--card-beige); border-bottom: 1px solid #d9cdb0; cursor: pointer; font-size: 13.5px; position: static; min-width: 0; border-right: none; padding: 0; }
+/* 반 헤더 글자는 표를 가로로 밀어도 화면 왼쪽에 붙어 있음 (이름 열 폭에 영향을 주지 않음) */
+.annual-class-label { position: sticky; left: 10px; display: inline-flex; align-items: baseline; gap: 6px; padding: 7px 0; white-space: nowrap; }
+.annual-class-label .dim-note { font-weight: 400; }
 .annual-caret { display: inline-block; width: 14px; color: var(--text-muted); }
+.annual-empty-note { padding: 10px 14px; }
 .annual-subtotal-row td { background: #faf6ec; font-weight: 700; text-align: center; }
 .annual-subtotal-row td:first-child { text-align: left; background: #faf6ec; }
 .annual-grand-row td { background: #e3ebf3; font-weight: 800; text-align: center; border-top: 2px solid var(--primary); }
@@ -589,6 +590,8 @@ td.annual-this-week { background: rgba(35, 64, 95, 0.07); }
 
 /* ---------- 대시보드 캘린더 ---------- */
 .cal-layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; margin-bottom: 8px; }
+.cal-main, .cal-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.cal-layout .panel { margin-bottom: 0; }
 .cal-panel { margin-bottom: 0; padding: 16px 16px 14px; }
 .cal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
 .cal-nav { display: flex; align-items: center; gap: 8px; }
@@ -621,20 +624,21 @@ td.annual-this-week { background: rgba(35, 64, 95, 0.07); }
 .cal-cell.today .cal-num { background: var(--primary); color: #fff; padding: 0 5px; }
 .cal-items { display: flex; flex-direction: column; gap: 2px; margin-top: 3px; }
 .cal-chip {
-  display: block; font-size: 11.5px; line-height: 1.35; padding: 1px 5px; border-radius: 5px; font-weight: 600;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  font-size: 11.5px; line-height: 1.35; padding: 1px 5px; border-radius: 5px; font-weight: 600;
   background: color-mix(in srgb, var(--c, #23405f) 14%, white); color: var(--c, #23405f);
-  border-left: 3px solid var(--c, #23405f); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  border-left: 3px solid var(--c, #23405f); overflow-wrap: anywhere; word-break: keep-all;
 }
 .cal-chip-bd { --c: #c2255c; }
 .cal-chip-bd-t { --c: #7048e8; }
 .cal-more { font-size: 11px; color: var(--text-muted); padding-left: 4px; }
+.cal-more-m { display: none; }
 .cal-dots { display: none; justify-content: center; gap: 3px; margin-top: 3px; flex-wrap: wrap; }
 .cal-dots i { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
 .cal-dots .dot-bd { background: #c2255c; }
 .cal-dots .dot-bd-t { background: #7048e8; }
 
-.cal-side .panel { margin-bottom: 12px; padding: 14px 16px; }
-.cal-side .panel:last-child { margin-bottom: 0; }
+.cal-main > .panel:not(.cal-panel), .cal-side .panel { padding: 14px 16px; }
 .cal-side-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .cal-side-head h3 { margin: 0; font-size: 15px; font-weight: 800; }
 .cal-item { display: flex; align-items: center; gap: 6px; padding: 8px 10px; margin-bottom: 6px; border-radius: 10px; background: var(--bg); border-left: 4px solid var(--c, #23405f); }
@@ -649,14 +653,101 @@ td.annual-this-week { background: rgba(35, 64, 95, 0.07); }
 .cal-line:last-child { border-bottom: none; }
 .cal-line-date { color: var(--text-muted); font-size: 12.5px; min-width: 62px; }
 
+/* 이번 달 전체 일정 목록 */
+.cal-mrow { display: flex; gap: 10px; padding: 8px 6px; border-bottom: 1px solid var(--border); cursor: pointer; border-radius: 8px; }
+.cal-mrow:last-child { border-bottom: none; }
+.cal-mrow:hover { background: #f8f3e7; }
+.cal-mrow.sel { background: var(--card-beige); }
+.cal-mrow.today .cal-mdate b { background: var(--primary); color: #fff; }
+.cal-mdate { width: 38px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
+.cal-mdate b { min-width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border-radius: 13px; font-size: 15px; }
+.cal-mdate span { font-size: 11px; color: var(--text-muted); }
+.cal-mdate.sun b { color: #c94a4a; }
+.cal-mdate.sat b { color: #2f6db5; }
+.cal-mrow.today .cal-mdate b { color: #fff; }
+.cal-mitems { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.cal-mev { border-left: 4px solid var(--c, #23405f); padding: 1px 0 1px 8px; }
+.cal-mev-title { display: block; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+.cal-mev-sub { display: block; font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; }
+.cal-mbd { border-left: 4px solid #c2255c; padding: 1px 0 1px 8px; font-size: 13.5px; font-weight: 600; overflow-wrap: anywhere; }
+.cal-mbd-t { border-left-color: #7048e8; }
+
 @media (max-width: 1000px) {
-  .cal-layout { grid-template-columns: 1fr; }
+  .cal-layout { grid-template-columns: 1fr; gap: 14px; }
+  /* 한 줄 배치에서는 달력 → 선택한 날 → 이번 달 전체 일정 → 다가오는 일정 순서로 */
+  .cal-main, .cal-side { display: contents; }
+  .cal-panel { order: 1; }
+  #calDetail { order: 2; }
+  #calMonthList { order: 3; }
+  #calUpcoming { order: 4; }
 }
 @media (max-width: 800px) {
-  .cal-cell { min-height: 54px; padding: 3px 2px; text-align: center; }
-  .cal-items { display: none; }
-  .cal-dots { display: flex; }
+  /* 좁은 화면에서도 점이 아니라 일정 이름이 글자로 보이도록: 작은 글씨로 앞부분을 보여주고 2개 넘으면 +N */
+  .cal-cell { min-height: 76px; padding: 2px 1px 3px; }
+  .cal-num { margin-left: 2px; }
+  .cal-items { gap: 2px; margin-top: 1px; }
+  .cal-chip { font-size: 9.5px; line-height: 1.25; padding: 0 2px; border-left-width: 2px; border-radius: 3px; }
+  .cal-chip:nth-child(n+3) { display: none; }
+  .cal-more-pc { display: none; }
+  .cal-more-m { display: block; padding-left: 2px; font-size: 10px; }
   .cal-legend { margin-left: 0; width: 100%; }
   .cal-title { font-size: 16.5px; min-width: 96px; }
-  .cal-panel { padding: 12px 8px; }
+  .cal-panel { padding: 12px 6px; }
 }
+
+/* 월별 생일자: 학생/교사 구역 제목 */
+.bd-section-head { display: flex; align-items: baseline; gap: 8px; margin: 0 0 6px; }
+.bd-section-head h3 { margin: 0; font-size: 15px; font-weight: 800; }
+.bd-section-gap { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+/* ---------- 연간계획: 월별 카드 ---------- */
+.seg { display: inline-flex; margin-left: auto; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--card-bg); }
+.seg-btn { border: none; background: transparent; padding: 8px 14px; font-size: 13.5px; font-weight: 600; color: var(--text-muted); cursor: pointer; }
+.seg-btn.active { background: var(--primary); color: #fff; }
+.plan-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; align-items: start; }
+.plan-month-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 14px 10px; scroll-margin-top: 84px; }
+.plan-month-card.is-now { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(35, 64, 95, 0.15); }
+.plan-month-card h3 { margin: 0 0 8px; font-size: 17px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+.plan-now-badge { font-size: 11px; font-weight: 700; background: var(--primary); color: #fff; padding: 2px 8px; border-radius: 999px; }
+.plan-entry {
+  display: flex; align-items: flex-start; gap: 10px; width: 100%; text-align: left; font: inherit; color: inherit;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 9px 10px; margin-bottom: 8px; cursor: pointer;
+}
+.plan-entry:hover { border-color: var(--primary); background: #fbf7ec; }
+.plan-entry.past { opacity: 0.6; }
+.plan-entry.now { opacity: 1; border-color: var(--primary); background: #eef2f7; }
+.plan-entry-date { flex: 0 0 46px; font-weight: 800; font-size: 14px; display: flex; flex-direction: column; line-height: 1.25; }
+.plan-entry-date small { font-size: 10.5px; font-weight: 700; color: var(--primary); }
+.plan-entry-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.plan-line { display: flex; align-items: baseline; gap: 7px; font-size: 13px; overflow-wrap: anywhere; word-break: keep-all; }
+.plan-line-youth { font-size: 14.5px; font-weight: 800; color: var(--primary); }
+.plan-tag { flex: 0 0 auto; font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; color: #fff; }
+.plan-tag-youth { background: #23405f; }
+.plan-tag-season { background: #a67c1a; }
+.plan-tag-church { background: #c2610f; }
+.plan-tag-sunday { background: #3f8a5a; }
+.plan-note { font-size: 12px; color: var(--text-muted); overflow-wrap: anywhere; }
+.plan-edit { color: var(--text-muted); font-size: 14px; opacity: 0.5; }
+.plan-entry:hover .plan-edit { opacity: 1; }
+.plan-empty { margin: 2px 0 2px; }
+.plan-empty summary { cursor: pointer; font-size: 12.5px; color: var(--text-muted); padding: 4px 2px; user-select: none; }
+.plan-empty-list { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 0 4px; }
+.plan-empty-btn { border: 1px dashed #cdbf9d; background: transparent; border-radius: 999px; padding: 4px 11px; font-size: 12.5px; color: var(--text-muted); cursor: pointer; }
+.plan-empty-btn:hover { border-color: var(--primary); color: var(--primary); }
+@media (max-width: 800px) {
+  .plan-cards { grid-template-columns: 1fr; }
+  .plan-month-card { scroll-margin-top: 70px; }
+}
+
+/* 연간출석부: 모바일에서는 이름 열(프로필 사진 포함)과 날짜 칸을 줄여서 날짜가 더 많이 보이게 */
+@media (max-width: 800px) {
+  .annual-table { font-size: 12.5px; }
+  .annual-table th, .annual-table td { padding: 5px 5px; }
+  .annual-table tbody td:first-child, .annual-table tfoot td:first-child, .annual-table .annual-month-row th:first-child { min-width: 82px; }
+  .annual-table .student-name-cell { gap: 5px; }
+  .annual-table .student-thumb { width: 22px; height: 22px; font-size: 11px; }
+  .annual-table .att-cell { min-width: 30px; padding: 5px 2px; }
+  .annual-table .annual-date-row th { font-size: 11px; padding: 5px 2px; }
+  .annual-rate { min-width: 44px; }
+}
+.bd-ic { margin-right: 2px; }

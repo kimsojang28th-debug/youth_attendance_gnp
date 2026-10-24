@@ -4,7 +4,7 @@ import {
 import { loadClasses, getClassesCache } from "./classes.js";
 import { loadStudents, getStudentsCache } from "./students.js";
 import { loadTeachers, getTeachersCache } from "./teachers.js";
-import { $, $all, escapeHtml, todayISO, openModal, closeModal } from "./utils.js";
+import { $, $all, escapeHtml, todayISO, openModal, closeModal, lunarMonthDay } from "./utils.js";
 import { currentUser } from "./auth.js";
 
 // 대시보드 월간 캘린더 (2026-10-24 추가)
@@ -39,19 +39,7 @@ const isLeap = (y) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
 const dowOf = (iso) => new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10))).getDay();
 const labelOf = (iso) => `${Number(iso.slice(5, 7))}월 ${Number(iso.slice(8, 10))}일 (${WEEKDAYS[dowOf(iso)]})`;
 
-// 음력 날짜 계산 (브라우저 내장 Intl의 중국력 사용). 윤달은 제외.
-let _lunarFmt = null;
-try { _lunarFmt = new Intl.DateTimeFormat("en-u-ca-chinese", { month: "numeric", day: "numeric" }); } catch (e) { _lunarFmt = null; }
-function lunarOf(y, m, d) {
-  if (!_lunarFmt) return null;
-  try {
-    const parts = _lunarFmt.formatToParts(new Date(y, m, d, 12));
-    const mp = parts.find(p => p.type === "month")?.value || "";
-    const dp = parts.find(p => p.type === "day")?.value || "";
-    if (/bis/i.test(mp)) return null;
-    return { m: parseInt(mp, 10), d: parseInt(dp, 10) };
-  } catch (e) { return null; }
-}
+const lunarOf = lunarMonthDay;
 
 function loadPrefs() {
   try {
@@ -180,16 +168,13 @@ function render() {
     const tea = state.show.teacher ? bd.teachers : [];
 
     const chips = [];
-    evs.forEach(e => chips.push(`<span class="cal-chip" style="--c:${(EVENT_TYPES[e.type] || EVENT_TYPES.etc).color}">${escapeHtml(e.title)}</span>`));
-    if (stu.length) chips.push(`<span class="cal-chip cal-chip-bd">🎂 ${escapeHtml(stu[0].name)}${stu.length > 1 ? ` 외 ${stu.length - 1}명` : ""}</span>`);
-    if (tea.length) chips.push(`<span class="cal-chip cal-chip-bd cal-chip-bd-t">🎂 ${escapeHtml(tea[0].name)}${tea.length > 1 ? ` 외 ${tea.length - 1}명` : ""}</span>`);
-    const shown = chips.slice(0, 3).join("");
-    const more = chips.length > 3 ? `<span class="cal-more">+${chips.length - 3}</span>` : "";
-
-    const dots = [];
-    evs.forEach(e => dots.push(`<i style="background:${(EVENT_TYPES[e.type] || EVENT_TYPES.etc).color}"></i>`));
-    if (stu.length) dots.push(`<i class="dot-bd"></i>`);
-    if (tea.length) dots.push(`<i class="dot-bd-t"></i>`);
+    evs.forEach(e => chips.push(`<span class="cal-chip" title="${escapeHtml(e.title)}" style="--c:${(EVENT_TYPES[e.type] || EVENT_TYPES.etc).color}">${escapeHtml(e.title)}</span>`));
+    if (stu.length) chips.push(`<span class="cal-chip cal-chip-bd" title="${escapeHtml(stu.map(x => x.name).join(", "))}">🎂&nbsp;${escapeHtml(stu[0].name)}${stu.length > 1 ? ` 외 ${stu.length - 1}명` : ""}</span>`);
+    if (tea.length) chips.push(`<span class="cal-chip cal-chip-bd cal-chip-bd-t" title="${escapeHtml(tea.map(x => x.name).join(", "))} (교사)">🎂&nbsp;${escapeHtml(tea[0].name)}${tea.length > 1 ? ` 외 ${tea.length - 1}명` : ""}</span>`);
+    // 일정 이름이 점이 아니라 글자로 보이도록: PC는 4개까지, 모바일(좁은 칸)은 2개까지 보이고 나머지는 +N으로 표시(CSS로 전환)
+    const shown = chips.slice(0, 4).join("");
+    const more = (chips.length > 4 ? `<span class="cal-more cal-more-pc">+${chips.length - 4}</span>` : "") +
+                 (chips.length > 2 ? `<span class="cal-more cal-more-m">+${chips.length - 2}</span>` : "");
 
     const cls = ["cal-cell"];
     if (c.out) cls.push("out");
@@ -200,13 +185,13 @@ function render() {
     return `<div class="${cls.join(" ")}" data-date="${c.iso}" role="button" tabindex="0" aria-label="${labelOf(c.iso)}">
       <span class="cal-num">${c.day}</span>
       <div class="cal-items">${shown}${more}</div>
-      <div class="cal-dots">${dots.slice(0, 4).join("")}</div>
     </div>`;
   }).join("");
 
   host.innerHTML = `
     <div class="cal-layout">
-      <div class="panel cal-panel">
+     <div class="cal-main">
+      <div class="panel cal-panel" id="calPanel">
         <div class="cal-head">
           <div class="cal-nav">
             <button type="button" class="btn btn-sm" id="calPrev" aria-label="이전 달">◀</button>
@@ -226,15 +211,16 @@ function render() {
         <div class="cal-grid cal-weekdays">${WEEKDAYS.map((w, i) => `<div class="${i === 0 ? "sun" : i === 6 ? "sat" : ""}">${w}</div>`).join("")}</div>
         <div class="cal-grid cal-days">${cellHtml}</div>
       </div>
+      <div class="panel" id="calMonthList"></div>
+     </div>
       <div class="cal-side">
         <div class="panel" id="calDetail"></div>
-        <div class="panel" id="calMonthBd"></div>
         <div class="panel" id="calUpcoming"></div>
       </div>
     </div>`;
 
   renderDetail();
-  renderMonthBirthdays();
+  renderMonthList();
   renderUpcoming();
   bindCalendar();
 }
@@ -265,22 +251,49 @@ function renderDetail() {
     ${body || `<p class="dim-note" style="margin:6px 0 0;">등록된 일정이 없습니다.</p>`}`;
 }
 
-function renderMonthBirthdays() {
-  const el = $("#calMonthBd");
+// "이번 달 전체 일정": 달력 칸을 눌러보지 않아도 그 달의 일정과 생일이 날짜순으로 한눈에 보이는 목록
+function renderMonthList() {
+  const el = $("#calMonthList");
   if (!el) return;
   const { year, month } = state;
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const rows = [];
-  for (let d = 1; d <= daysInMonth; d++) {
+  const last = new Date(year, month + 1, 0).getDate();
+  const monthStart = isoOf(year, month, 1), monthEnd = isoOf(year, month, last);
+  const rows = {};
+  const row = (iso) => (rows[iso] ||= { events: [], stu: [], tea: [] });
+  if (state.show.events) {
+    state.events.forEach(e => {
+      if ((e.endDate || e.date) < monthStart || e.date > monthEnd) return;
+      row(e.date < monthStart ? monthStart : e.date).events.push(e); // 여러 날 일정은 시작일(이번 달 이전에 시작했으면 1일)에 한 번만 표시
+    });
+  }
+  for (let d = 1; d <= last; d++) {
     const iso = isoOf(year, month, d);
     const bd = birthdaysOn(iso);
-    if (state.show.student) bd.students.forEach(b => rows.push({ d, iso, name: b.name, sub: b.sub ? `학생 · ${b.sub}` : "학생", t: false }));
-    if (state.show.teacher) bd.teachers.forEach(b => rows.push({ d, iso, name: b.name, sub: b.sub, t: true }));
+    if (state.show.student && bd.students.length) row(iso).stu = bd.students;
+    if (state.show.teacher && bd.teachers.length) row(iso).tea = bd.teachers;
   }
+  const dates = Object.keys(rows).sort();
+  const total = dates.reduce((n, iso) => n + rows[iso].events.length + rows[iso].stu.length + rows[iso].tea.length, 0);
+  const today = todayISO();
+  const md = (iso) => `${Number(iso.slice(5, 7))}/${Number(iso.slice(8, 10))}`;
+
   el.innerHTML = `
-    <div class="cal-side-head"><h3>🎂 ${month + 1}월 생일자</h3></div>
-    ${rows.length ? rows.map(r => `<div class="cal-line"><span class="cal-line-date">${month + 1}/${r.d}(${WEEKDAYS[dowOf(r.iso)]})</span><span>${escapeHtml(r.name)}</span><span class="dim-note">${escapeHtml(r.sub)}</span></div>`).join("")
-      : `<p class="dim-note" style="margin:6px 0 0;">이번 달 생일자가 없습니다.</p>`}`;
+    <div class="cal-side-head"><h3>🗓️ ${month + 1}월 전체 일정</h3><span class="dim-note">${total}건</span></div>
+    ${dates.length ? dates.map(iso => {
+      const r = rows[iso];
+      const dow = dowOf(iso);
+      const evHtml = r.events.map(e => {
+        const t = EVENT_TYPES[e.type] || EVENT_TYPES.etc;
+        const range = e.endDate && e.endDate !== e.date ? ` · ${md(e.date)} ~ ${md(e.endDate)}` : "";
+        return `<div class="cal-mev" style="--c:${t.color}"><span class="cal-mev-title">${escapeHtml(e.title)}</span><span class="cal-mev-sub">${t.label}${range}${e.note ? ` · ${escapeHtml(e.note)}` : ""}</span></div>`;
+      }).join("");
+      const stuHtml = r.stu.length ? `<div class="cal-mbd">🎂 ${r.stu.map(x => escapeHtml(x.name)).join(", ")} <span class="dim-note">학생</span></div>` : "";
+      const teaHtml = r.tea.length ? `<div class="cal-mbd cal-mbd-t">🎂 ${r.tea.map(x => escapeHtml(x.name)).join(", ")} <span class="dim-note">교사</span></div>` : "";
+      return `<div class="cal-mrow${iso === today ? " today" : ""}${iso === state.selected ? " sel" : ""}" data-date="${iso}" role="button" tabindex="0">
+        <div class="cal-mdate ${dow === 0 ? "sun" : dow === 6 ? "sat" : ""}"><b>${Number(iso.slice(8, 10))}</b><span>${WEEKDAYS[dow]}</span></div>
+        <div class="cal-mitems">${evHtml}${stuHtml}${teaHtml}</div>
+      </div>`;
+    }).join("") : `<p class="dim-note" style="margin:6px 0 0;">이번 달에 표시할 일정이 없습니다.</p>`}`;
 }
 
 function renderUpcoming() {
@@ -303,6 +316,7 @@ function select(iso) {
   const [y, m] = [Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1];
   if (y !== state.year || m !== state.month) { goMonth(y, m); return; }
   $all(".cal-cell").forEach(c => c.classList.toggle("sel", c.dataset.date === iso));
+  $all(".cal-mrow").forEach(r => r.classList.toggle("sel", r.dataset.date === iso));
   renderDetail();
   bindDetail();
   if (window.matchMedia("(max-width: 800px)").matches) {
@@ -346,6 +360,10 @@ function bindCalendar() {
   $all(".cal-cell").forEach(c => {
     c.onclick = () => select(c.dataset.date);
     c.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(c.dataset.date); } };
+  });
+  $all(".cal-mrow").forEach(r => {
+    r.onclick = () => select(r.dataset.date);
+    r.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); select(r.dataset.date); } };
   });
   bindDetail();
 }

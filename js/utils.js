@@ -147,3 +147,19 @@ export function friendlyFirestoreError(err) {
   }
   return `데이터를 불러오지 못했습니다: ${escapeHtml(msg) || "알 수 없는 오류"}`;
 }
+
+
+// 음력 변환 (브라우저 내장 Intl의 중국력 사용) - 월별 생일자 화면과 대시보드 캘린더가 함께 씀.
+// 양력 y년 m0월(0~11) d일이 음력 몇 월 몇 일인지 {m, d}로 돌려줌. 윤달이거나 브라우저가 지원하지 않으면 null.
+let _lunarFmt = null;
+try { _lunarFmt = new Intl.DateTimeFormat("en-u-ca-chinese", { month: "numeric", day: "numeric" }); } catch (e) { _lunarFmt = null; }
+export function lunarMonthDay(y, m0, d) {
+  if (!_lunarFmt) return null;
+  try {
+    const parts = _lunarFmt.formatToParts(new Date(y, m0, d, 12));
+    const mp = parts.find(p => p.type === "month")?.value || "";
+    const dp = parts.find(p => p.type === "day")?.value || "";
+    if (/bis/i.test(mp)) return null;
+    return { m: parseInt(mp, 10), d: parseInt(dp, 10) };
+  } catch (e) { return null; }
+}

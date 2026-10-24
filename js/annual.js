@@ -145,14 +145,14 @@ async function renderAnnualTable() {
 
   const bodyHtml = sections.map(sec => {
     const { cls } = sec;
+    // 반 헤더는 표 전체 폭을 쓰고, 글자만 화면 왼쪽에 붙어 따라오게 함(이름 열 폭을 늘리지 않기 위해)
     const header = `
       <tr class="annual-class-row" data-class-id="${cls.id}">
-        <td class="annual-class-name"><span class="annual-caret">${_collapsed.has(cls.id) ? "▸" : "▾"}</span> <b>${escapeHtml(cls.name)}</b>
-          <span class="dim-note">${teacherLine(cls)} · ${sec.rows.length}명</span></td>
-        <td colspan="${N + 2}" class="annual-class-fill"></td>
+        <td colspan="${N + 3}"><span class="annual-class-label"><span class="annual-caret">${_collapsed.has(cls.id) ? "▸" : "▾"}</span> <b>${escapeHtml(cls.name)}</b>
+          <span class="dim-note">${teacherLine(cls)} · ${sec.rows.length}명</span></span></td>
       </tr>`;
     if (!sec.rows.length) {
-      return header + `<tr class="annual-student-row" data-class-id="${cls.id}"><td colspan="${N + 3}" class="dim-note" style="padding:10px 14px;">이 반에 등록된 학생이 없습니다.</td></tr>`;
+      return header + `<tr class="annual-student-row" data-class-id="${cls.id}"><td colspan="${N + 3}" class="dim-note annual-empty-note">이 반에 등록된 학생이 없습니다.</td></tr>`;
     }
     const rowsHtml = sec.rows.map(r => {
       const cells = r.cells.map((c, i) => {
@@ -165,7 +165,7 @@ async function renderAnnualTable() {
         ${cells}<td class="annual-sum">${r.present}</td><td class="annual-rate">${rateText(r.present, r.eligible)}</td></tr>`;
     }).join("");
     const subtotal = `<tr class="annual-subtotal-row" data-class-id="${cls.id}">
-        <td>${escapeHtml(cls.name)} 소계</td>
+        <td>소계</td>
         ${sec.weekly.map((n, i) => `<td class="${wk(sundays[i]).trim()}">${n}</td>`).join("")}
         <td class="annual-sum">${sec.totalPresent}</td><td class="annual-rate">${rateText(sec.totalPresent, sec.totalEligible)}</td></tr>`;
     return header + rowsHtml + subtotal;
@@ -173,7 +173,7 @@ async function renderAnnualTable() {
 
   const grandHtml = grand ? `
     <tr class="annual-grand-row">
-      <td>전체 합계 <span class="dim-note">(새친구반 제외)</span></td>
+      <td>전체 합계</td>
       ${grand.weekly.map((n, i) => `<td class="${wk(sundays[i]).trim()}">${n}</td>`).join("")}
       <td class="annual-sum">${grand.totalPresent}</td><td class="annual-rate">${rateText(grand.totalPresent, grand.totalEligible)}</td>
     </tr>` : "";

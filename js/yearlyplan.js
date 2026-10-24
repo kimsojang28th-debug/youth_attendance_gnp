@@ -2,8 +2,8 @@ import {
   db, collection, doc, getDocs, setDoc, deleteDoc, query, where, serverTimestamp
 } from "./firebase-init.js";
 import {
-  $, escapeHtml, getSundaysOfYear, fmtMonthDay, yearSelectOptionsHtml,
-  openModal, closeModal, friendlyFirestoreError
+  $, $all, escapeHtml, getSundaysOfYear, fmtMonthDay, yearSelectOptionsHtml,
+  openModal, closeModal, friendlyFirestoreError, nearestSundayISO
 } from "./utils.js";
 import { currentUser } from "./auth.js";
 
@@ -18,12 +18,35 @@ const PLAN_FIELDS = [
   { key: "youthEvent", label: "청소년부 행사" }
 ];
 
+// 2026-10-24 개편: 기본 화면을 "월별 카드"로 바꿈 - 내용이 있는 주일만 색 라벨과 함께 크게 보여주고, 빈 주일은 접어 둠.
+// 예전의 52주 전체 표는 "전체 표" 버튼으로 그대로 볼 수 있음.
+const PLAN_TAGS = [
+  { key: "youthEvent", label: "청소년부", cls: "youth" },
+  { key: "season", label: "절기", cls: "season" },
+  { key: "churchEvent", label: "교회", cls: "church" },
+  { key: "sundayEvent", label: "주일", cls: "sunday" }
+];
+
+let _byDate = {};
+let _mode = "cards";
+let _scrollToNow = true;
+
 export async function initYearlyPlanView() {
   const thisYear = new Date().getFullYear();
   const yearSelect = $("#yearlyPlanYearSelect");
   yearSelect.innerHTML = yearSelectOptionsHtml(thisYear);
-  yearSelect.onchange = renderYearlyPlanTable;
-  await renderYearlyPlanTable();
+  yearSelect.onchange = () => { _scrollToNow = true; renderYearlyPlan(); };
+  try { _mode = localStorage.getItem("youth:planView") === "table" ? "table" : "cards"; } catch (e) { _mode = "cards"; }
+  $all(".plan-mode-btn").forEach(b => {
+    b.onclick = () => {
+      _mode = b.dataset.mode;
+      try { localStorage.setItem("youth:planView", _mode); } catch (e) { /* 무시 */ }
+      _scrollToNow = true;
+      paintPlan();
+    };
+  });
+  _scrollToNow = true;
+  await renderYearlyPlan();
 }
 
 async function fetchYearlyPlan(year) {
@@ -38,20 +61,89 @@ async function fetchYearlyPlan(year) {
   return byDate;
 }
 
-async function renderYearlyPlanTable() {
+async function renderYearlyPlan() {
   const year = Number($("#yearlyPlanYearSelect").value);
-  const wrap = $("#yearlyPlanTableWrap");
-  wrap.innerHTML = `<p style="padding:16px;color:#868e96;">불러오는 중...</p>`;
-
-  let byDate;
+  const cardsWrap = $("#yearlyPlanCardsWrap");
+  cardsWrap.innerHTML = `<p style="padding:16px;color:#868e96;">불러오는 중...</p>`;
   try {
-    byDate = await fetchYearlyPlan(year);
+    _byDate = await fetchYearlyPlan(year);
   } catch (err) {
     console.error("연간계획 조회 실패", err);
-    wrap.innerHTML = `<p class="list empty" style="padding:16px;line-height:1.6;color:#e03131;">${friendlyFirestoreError(err)}</p>`;
+    cardsWrap.innerHTML = `<p class="list empty" style="padding:16px;line-height:1.6;color:#e03131;">${friendlyFirestoreError(err)}</p>`;
     return;
   }
+  paintPlan();
+}
 
+function paintPlan() {
+  const year = Number($("#yearlyPlanYearSelect").value);
+  $all(".plan-mode-btn").forEach(b => b.classList.toggle("active", b.dataset.mode === _mode));
+  $("#yearlyPlanCardsWrap").classList.toggle("hidden", _mode !== "cards");
+  $("#yearlyPlanTableWrap").classList.toggle("hidden", _mode !== "table");
+  if (_mode === "cards") renderPlanCards(year, _byDate); else renderPlanTable(year, _byDate);
+}
+
+function hasPlanContent(entry) {
+  return !!entry && (PLAN_FIELDS.some(f => entry[f.key]) || entry.note);
+}
+
+function renderPlanCards(year, byDate) {
+  const wrap = $("#yearlyPlanCardsWrap");
+  const sundays = getSundaysOfYear(year);
+  const thisSunday = nearestSundayISO();
+  const now = new Date();
+  const isThisYear = year === now.getFullYear();
+  const isPastYear = year < now.getFullYear();
+
+  const months = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, filled: [], empty: [] }));
+  sundays.forEach(date => {
+    const m = months[Number(date.split("-")[1]) - 1];
+    (hasPlanContent(byDate[date]) ? m.filled : m.empty).push(date);
+  });
+
+  const mdLabel = (date) => fmtMonthDay(date);
+
+  wrap.innerHTML = months.map(m => {
+    const isNowMonth = isThisYear && m.month === now.getMonth() + 1;
+    const entries = m.filled.map(date => {
+      const e = byDate[date];
+      const past = isPastYear || (isThisYear && date < thisSunday);
+      const isNowWeek = isThisYear && date === thisSunday;
+      const lines = PLAN_TAGS.filter(t => e[t.key]).map(t =>
+        `<span class="plan-line plan-line-${t.cls}"><span class="plan-tag plan-tag-${t.cls}">${t.label}</span><span>${escapeHtml(e[t.key])}</span></span>`
+      ).join("");
+      return `
+        <button type="button" class="plan-entry${past ? " past" : ""}${isNowWeek ? " now" : ""}" data-date="${date}">
+          <span class="plan-entry-date">${mdLabel(date)}${isNowWeek ? `<small>이번 주</small>` : ""}</span>
+          <span class="plan-entry-body">${lines}${e.note ? `<span class="plan-note">${escapeHtml(e.note)}</span>` : ""}</span>
+          <span class="plan-edit" aria-hidden="true">✎</span>
+        </button>`;
+    }).join("");
+    const emptyBlock = m.empty.length ? `
+      <details class="plan-empty">
+        <summary>${m.filled.length ? `빈 주일 ${m.empty.length}개` : "등록된 계획 없음"} · 눌러서 등록</summary>
+        <div class="plan-empty-list">${m.empty.map(d => `<button type="button" class="plan-empty-btn" data-date="${d}">${mdLabel(d)} +</button>`).join("")}</div>
+      </details>` : "";
+    return `
+      <section class="plan-month-card${isNowMonth ? " is-now" : ""}" data-month="${m.month}">
+        <h3>${m.month}월${isNowMonth ? `<span class="plan-now-badge">이번 달</span>` : ""}</h3>
+        ${entries}${emptyBlock}
+      </section>`;
+  }).join("");
+
+  wrap.querySelectorAll(".plan-entry, .plan-empty-btn").forEach(el => {
+    el.onclick = () => openPlanModal(el.dataset.date, byDate[el.dataset.date] || null);
+  });
+
+  // 처음 열었을 때(또는 연도를 바꿨을 때) 이번 달 카드가 보이도록 이동. 저장 후 다시 그릴 때는 이동하지 않음.
+  if (_scrollToNow && isThisYear && now.getMonth() >= 3) {
+    wrap.querySelector(".plan-month-card.is-now")?.scrollIntoView({ block: "start" });
+  }
+  _scrollToNow = false;
+}
+
+function renderPlanTable(year, byDate) {
+  const wrap = $("#yearlyPlanTableWrap");
   const sundays = getSundaysOfYear(year);
 
   // 같은 달의 주일끼리 묶어서 "월" 칸을 rowspan으로 합쳐 첨부 엑셀 서식과 비슷하게 보여줌
@@ -135,7 +227,7 @@ function openPlanModal(date, entry) {
         return;
       }
       closeModal();
-      renderYearlyPlanTable();
+      renderYearlyPlan();
     };
   }
 
@@ -156,6 +248,6 @@ function openPlanModal(date, entry) {
       return;
     }
     closeModal();
-    renderYearlyPlanTable();
+    renderYearlyPlan();
   };
 }

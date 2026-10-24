@@ -72,7 +72,7 @@ function renderTeachersView() {
   $("#bulkImportTeacherBtn").onclick = () => openBulkImportModal();
 }
 
-function openTeacherProfileModal(teacher) {
+export function openTeacherProfileModal(teacher) {
   openModal(`
     <div class="profile-header">
       <div>
