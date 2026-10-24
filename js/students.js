@@ -3,10 +3,11 @@ import {
 } from "./firebase-init.js";
 import { loadClasses, getClassesCache } from "./classes.js";
 import {
-  $, $all, escapeHtml, STUDENT_STATUS_LABEL, openModal, closeModal, todayISO, parseDelimitedLine, sortByName
+  $, $all, escapeHtml, STUDENT_STATUS_LABEL, openModal, closeModal, todayISO, parseDelimitedLine, sortByName, formatPhone, phoneDigits, confirmTypeName
 } from "./utils.js";
 import { isAdmin, canEditClass } from "./auth.js";
 import { addHistoryRecord, deleteHistoryForStudent } from "./history.js";
+import { openDataCheckModal } from "./datacheck.js";
 import { requestAnnualClass } from "./annual.js";
 import { rosterForYear, getLiveYear, listArchivedYears } from "./terms.js";
 
@@ -80,6 +81,8 @@ export async function initStudentsView() {
   $("#bulkImportBtn").onclick = () => openBulkImportModal(editableClasses);
   // 담당반이 없는 교사는 학생을 추가/일괄등록/졸업처리 할 수 없으므로 버튼을 숨김 (지난 학년도 조회 중에도 숨김)
   syncToolbarButtons();
+  const dcBtn = $("#dataCheckBtn");
+  if (dcBtn) { dcBtn.classList.toggle("hidden", !isAdmin()); dcBtn.onclick = openDataCheckModal; }
   $("#studentsBulkMoveBtn").onclick = handleBulkMove;
 
   await loadStudents(true);
@@ -322,12 +325,16 @@ function guardianRowHtml(relation = "아버지", name = "", phone = "") {
   const options = ["아버지", "어머니", "할아버지", "할머니", "기타"];
   return `
     <div class="guardian-row">
-      <select class="g_relation">
-        ${options.map(o => `<option value="${o}" ${o === relation ? "selected" : ""}>${o}</option>`).join("")}
-      </select>
-      <input class="g_name" placeholder="이름" value="${escapeHtml(name)}" />
-      <input class="g_phone" placeholder="전화번호" value="${escapeHtml(phone)}" />
-      <button type="button" class="btn btn-sm btn-danger g_remove">삭제</button>
+      <div class="g-top">
+        <select class="g_relation">
+          ${options.map(o => `<option value="${o}" ${o === relation ? "selected" : ""}>${o}</option>`).join("")}
+        </select>
+        <input class="g_name" placeholder="이름" value="${escapeHtml(name)}" />
+      </div>
+      <div class="g-bot">
+        <input class="g_phone" data-phone inputmode="tel" placeholder="전화번호 (숫자만 입력)" value="${escapeHtml(phone)}" />
+        <button type="button" class="btn btn-sm btn-danger g_remove">삭제</button>
+      </div>
     </div>
   `;
 }
@@ -405,6 +412,20 @@ function resizeImageToDataUrl(file, maxSize = 320, quality = 0.75) {
   });
 }
 
+// 같은 이름 + 같은 연락처의 학생이 이미 있는지 확인 (졸업·제적 포함, 연락처는 숫자만 비교)
+const nameKey = (v) => String(v || "").replace(/\s+/g, "");
+function findStudentDup(name, phone, selfId, pool = _studentsCache) {
+  const d = phoneDigits(phone);
+  const others = pool.filter(o => o.id !== selfId && nameKey(o.name) === nameKey(name));
+  const exact = d.length >= 9 ? others.find(o => phoneDigits(o.phone) === d) : null;
+  const ambiguous = others.filter(o => d.length < 9 || phoneDigits(o.phone).length < 9);
+  return { exact, ambiguous };
+}
+function describeStudent(o) {
+  const cls = o.classId === "newcomer" ? "새친구" : ((getClassesCache().find(c => c.id === o.classId) || {}).name || "반 없음");
+  return `${o.name} / ${o.phone || "연락처 없음"} / ${cls} · ${STUDENT_STATUS_LABEL[o.status] || o.status}`;
+}
+
 function openStudentModal(student = null) {
   const classes = getClassesCache();
   const classMap = Object.fromEntries(classes.map(c => [c.id, c.name]));
@@ -465,7 +486,7 @@ function openStudentModal(student = null) {
     <input type="date" id="f_joinDate" value="${student?.joinDate || todayISO()}" />
 
     <label>전화번호(학생)</label>
-    <input id="f_phone" value="${escapeHtml(student?.phone || "")}" placeholder="010-0000-0000" />
+    <input id="f_phone" data-phone inputmode="tel" value="${escapeHtml(student?.phone || "")}" placeholder="010-0000-0000 (숫자만 입력)" />
     <label>학교명</label>
     <input id="f_school" value="${escapeHtml(student?.school || "")}" placeholder="예: 지산중" />
     <label>생일</label>
@@ -626,7 +647,11 @@ function openStudentModal(student = null) {
 
   if (isEdit) {
     $("#deleteBtn").onclick = async () => {
-      if (!confirm(`${student.name} 학생 정보를 삭제할까요?\n관련된 재적변동이력도 함께 삭제됩니다. (지난 출석 기록은 유지됩니다)`)) return;
+      if (!(await confirmTypeName({
+        title: "학생 삭제",
+        name: student.name,
+        bodyHtml: `<p>학생 정보와 <b>재적변동이력</b>이 함께 삭제되며 되돌릴 수 없습니다. (지난 출석 기록은 유지됩니다)</p><p class="dim-note">졸업·제적·전출이라면 삭제하지 말고 "상태"를 바꿔 주세요. 기록이 남습니다.</p>`
+      }))) return;
       try {
         await deleteDoc(doc(db, "students", student.id));
         await deleteHistoryForStudent(student.id);
@@ -646,10 +671,23 @@ function openStudentModal(student = null) {
     if (!$("#f_status").value) { alert("상태를 선택해주세요."); return; }
     if (!$("#f_classId").value) { alert("반을 선택해주세요."); return; }
     if (!$("#f_gender").value) { alert("성별을 선택해주세요."); return; }
+    {
+      // 같은 이름+연락처 중복 등록 방지 (수정 시에는 이름/연락처를 바꾼 경우에만 검사)
+      const nm = $("#f_name").value.trim(), ph = formatPhone($("#f_phone").value);
+      const changed = !student || nameKey(student.name) !== nameKey(nm) || phoneDigits(student.phone) !== phoneDigits(ph);
+      if (changed) {
+        const { exact, ambiguous } = findStudentDup(nm, ph, student?.id);
+        if (exact) {
+          alert(`이미 등록된 학생입니다.\n\n${describeStudent(exact)}\n\n새로 등록하지 말고 기존 학생의 반이나 상태를 수정해주세요.`);
+          return;
+        }
+        if (ambiguous.length && !confirm(`같은 이름의 학생이 이미 있습니다. (연락처가 없어 같은 사람인지 알 수 없습니다)\n\n${ambiguous.slice(0, 3).map(describeStudent).join("\n")}\n\n동명이인이면 [확인]을 눌러 계속 등록하세요.`)) return;
+      }
+    }
     const guardians = $all(".guardian-row", $("#guardianRows")).map(row => ({
       relation: row.querySelector(".g_relation").value,
       name: row.querySelector(".g_name").value.trim(),
-      phone: row.querySelector(".g_phone").value.trim()
+      phone: formatPhone(row.querySelector(".g_phone").value)
     })).filter(g => g.name || g.phone); // 이름/전화번호 둘 다 비어있는 빈 줄은 저장하지 않음
 
     const payload = {
@@ -660,7 +698,7 @@ function openStudentModal(student = null) {
       // "실제 학년(예정 반)"은 새친구 상태일 때만 의미가 있으므로, 그 외 상태로 저장될 때는 비워둠
       plannedClassId: $("#f_status").value === "new" ? ($("#f_plannedClassId")?.value || "") : "",
       joinDate: $("#f_joinDate").value,
-      phone: $("#f_phone").value.trim(),
+      phone: formatPhone($("#f_phone").value),
       school: $("#f_school").value.trim(),
       birthday: $("#f_birthday").value.trim(),
       address: $("#f_address").value.trim(),
@@ -764,12 +802,14 @@ function openBulkImportModal(visibleClasses) {
     let success = 0, fail = 0;
 
     const failedLines = [];
+    const importedNow = []; // 이번 일괄등록에서 방금 등록한 학생(같은 파일 안의 중복도 걸러내기 위함)
     for (const line of lines) {
       const parts = parseDelimitedLine(line).map(p => p.trim());
       const [
         name, className, genderRaw, statusRaw, joinDateRaw, phone, school, birthday, address,
         g1relation, g1name, g1phone, g2relation, g2name, g2phone, note
       ] = parts;
+      const importPool = _studentsCache.concat(importedNow);
       const gender = (genderRaw === "여" || genderRaw === "F") ? "F" : ((genderRaw === "남" || genderRaw === "M") ? "M" : "");
       const status = CSV_STATUS_MAP[statusRaw] || "active";
       // 새친구는 반이름 칸의 값과 무관하게 항상 새친구반으로 등록하고, 반이름 칸에 적힌 학년은
@@ -783,16 +823,17 @@ function openBulkImportModal(visibleClasses) {
         classId = nameToClassId[className];
       }
       if (!name || !classId || !gender) { fail++; failedLines.push(line + " (이름/반/성별 확인)"); continue; }
+      if (findStudentDup(name, phone, null, importPool).exact) { fail++; failedLines.push(line + " (이미 등록된 학생)"); continue; }
       // 등록일을 직접 지정하지 않았거나 형식이 이상하면(YYYY-MM-DD가 아니면) 오늘 날짜로 대체
       const joinDate = /^\d{4}-\d{2}-\d{2}$/.test(joinDateRaw || "") ? joinDateRaw : todayISO();
       // 보호자는 이름 또는 전화번호 중 하나라도 있으면 한 명으로 인정 (관계를 안 적었으면 순서대로 아버지/어머니로 기본 지정)
       const guardians = [];
-      if (g1name || g1phone) guardians.push({ relation: g1relation || "아버지", name: g1name || "", phone: g1phone || "" });
-      if (g2name || g2phone) guardians.push({ relation: g2relation || "어머니", name: g2name || "", phone: g2phone || "" });
+      if (g1name || g1phone) guardians.push({ relation: g1relation || "아버지", name: g1name || "", phone: formatPhone(g1phone) });
+      if (g2name || g2phone) guardians.push({ relation: g2relation || "어머니", name: g2name || "", phone: formatPhone(g2phone) });
       try {
         const ref = await addDoc(collection(db, "students"), {
           name, classId, plannedClassId, gender, status, joinDate,
-          phone: phone || "", school: school || "", birthday: birthday || "", address: address || "",
+          phone: formatPhone(phone), school: school || "", birthday: birthday || "", address: address || "",
           guardians, baptismStatus: "", scholarships: [], photoDataUrl: "",
           note: note || "",
           order: Date.now() + success, createdAt: serverTimestamp()
@@ -801,6 +842,7 @@ function openBulkImportModal(visibleClasses) {
           studentId: ref.id, studentName: name, classId,
           type: status, date: joinDate, note: "CSV 일괄등록"
         });
+        importedNow.push({ id: ref.id, name, phone: formatPhone(phone), classId, status });
         success++;
       } catch (err) {
         fail++;

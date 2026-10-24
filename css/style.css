@@ -870,3 +870,23 @@ td.annual-this-week { background: rgba(35, 64, 95, 0.07); }
 .login-sw{display:block;margin-top:4px;font-size:.82rem;white-space:nowrap;cursor:pointer}
 .inline-dd summary{font-size:.9rem}
 .saved-flash summary{background:#d3f9d8 !important;transition:background .3s}
+
+/* 보호자 연락처 입력줄: 좁은 화면에서는 두 단으로 */
+.guardian-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;align-items:center}
+.guardian-row .g-top,.guardian-row .g-bot{display:flex;gap:6px;flex:1 1 230px;align-items:center}
+.modal-box .guardian-row .g-top select{flex:0 0 92px}
+.modal-box .guardian-row .g-top input,.modal-box .guardian-row .g-bot input{flex:1;min-width:0;width:auto}
+@media(max-width:560px){
+  .guardian-row{padding:8px;border:1px solid #e8e2d4;border-radius:10px;background:#fffdf8}
+  .guardian-row .g-top,.guardian-row .g-bot{flex:1 1 100%}
+  .modal-box .guardian-row input,.modal-box .guardian-row select{font-size:16px;padding:10px}
+}
+.type-confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px}
+.type-confirm-box{background:#fffdf8;border-radius:14px;padding:18px;max-width:420px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.type-confirm-box h3{margin:0 0 8px;color:#c92a2a}
+.type-confirm-input{width:100%;box-sizing:border-box;margin:6px 0 12px;font-size:16px;padding:10px}
+.dc-sec{margin:14px 0}
+.dc-list{max-height:220px;overflow:auto;font-size:.85rem;border:1px solid #e8e2d4;border-radius:8px;padding:6px 8px;background:#fff}
+.dc-list div{padding:2px 0;border-bottom:1px dashed #eee}
+.modal-box .guardian-row .g-top input,.modal-box .guardian-row .g-bot input{width:0 !important;flex:1 1 0 !important;min-width:0 !important;box-sizing:border-box}
+.modal-box .guardian-row select{box-sizing:border-box}

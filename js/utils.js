@@ -163,3 +163,78 @@ export function lunarMonthDay(y, m0, d) {
     return { m: parseInt(mp, 10), d: parseInt(dp, 10) };
   } catch (e) { return null; }
 }
+
+
+// ---------------------------------------------------------------------------
+// 전화번호: 숫자만 입력해도 하이픈이 자동으로 붙도록 정리
+// ---------------------------------------------------------------------------
+export const phoneDigits = (v) => String(v || "").replace(/\D/g, "");
+
+export function formatPhone(v) {
+  const raw = String(v || "").trim();
+  if (raw.startsWith("+")) return raw; // 해외 번호는 그대로 둠
+  const d = phoneDigits(raw).slice(0, 11);
+  if (!d) return "";
+  if (d.startsWith("02")) {
+    const x = d.slice(0, 10);
+    if (x.length <= 2) return x;
+    if (x.length <= 6) return `${x.slice(0, 2)}-${x.slice(2)}`;
+    return `${x.slice(0, 2)}-${x.slice(2, x.length - 4)}-${x.slice(-4)}`;
+  }
+  if (d.startsWith("010")) {
+    if (d.length <= 3) return d;
+    if (d.length <= 7) return `${d.slice(0, 3)}-${d.slice(3)}`;
+    return `${d.slice(0, 3)}-${d.slice(3, 7)}-${d.slice(7)}`;
+  }
+  if (d.length <= 3) return d;
+  if (d.length <= 7) return `${d.slice(0, 3)}-${d.slice(3)}`;
+  return `${d.slice(0, 3)}-${d.slice(3, d.length - 4)}-${d.slice(-4)}`;
+}
+
+// data-phone 속성이 있는 입력칸은 입력하는 즉시 형식을 맞춘다(커서 위치 유지)
+if (typeof document !== "undefined") {
+  document.addEventListener("input", (e) => {
+    const el = e.target;
+    if (!(el instanceof HTMLInputElement) || !el.hasAttribute("data-phone") || e.isComposing) return;
+    const before = el.value;
+    const caret = el.selectionStart ?? before.length;
+    const digitsBefore = phoneDigits(before.slice(0, caret)).length;
+    const after = formatPhone(before);
+    if (after === before) return;
+    el.value = after;
+    let pos = 0, cnt = 0;
+    while (pos < after.length && cnt < digitsBefore) { if (/\d/.test(after[pos])) cnt++; pos++; }
+    try { el.setSelectionRange(pos, pos); } catch (err) { /* 일부 입력칸은 커서 이동 불가 */ }
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 삭제 확인: 삭제할 이름을 직접 입력해야 진행됨
+// ---------------------------------------------------------------------------
+export function confirmTypeName({ title, name, bodyHtml = "", confirmLabel = "삭제" }) {
+  return new Promise((resolve) => {
+    const norm = (s) => String(s || "").replace(/\s+/g, " ").trim();
+    const ov = document.createElement("div");
+    ov.className = "type-confirm-overlay";
+    ov.innerHTML = `
+      <div class="type-confirm-box" role="dialog" aria-modal="true">
+        <h3>${escapeHtml(title)}</h3>
+        <div class="type-confirm-body">${bodyHtml}</div>
+        <p>삭제하려면 아래에 이름 <b>${escapeHtml(name)}</b> 을(를) 그대로 입력해주세요.</p>
+        <input type="text" class="type-confirm-input" autocomplete="off" placeholder="${escapeHtml(name)}" />
+        <div class="modal-actions">
+          <button type="button" class="btn tc-cancel">취소</button>
+          <button type="button" class="btn btn-danger tc-ok" disabled>${escapeHtml(confirmLabel)}</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+    const input = ov.querySelector(".type-confirm-input");
+    const ok = ov.querySelector(".tc-ok");
+    const done = (v) => { ov.remove(); resolve(v); };
+    input.oninput = () => { ok.disabled = norm(input.value) !== norm(name); };
+    input.onkeydown = (e) => { if (e.key === "Enter" && !ok.disabled) done(true); if (e.key === "Escape") done(false); };
+    ov.querySelector(".tc-cancel").onclick = () => done(false);
+    ok.onclick = () => done(true);
+    setTimeout(() => input.focus(), 50);
+  });
+}

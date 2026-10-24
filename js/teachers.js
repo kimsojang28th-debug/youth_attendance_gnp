@@ -1,7 +1,7 @@
 import {
   db, collection, getDocs, addDoc, updateDoc, deleteDoc, query, orderBy, doc, serverTimestamp
 } from "./firebase-init.js";
-import { $, escapeHtml, openModal, closeModal, parseDelimitedLine } from "./utils.js";
+import { $, escapeHtml, openModal, closeModal, parseDelimitedLine, formatPhone, phoneDigits, confirmTypeName } from "./utils.js";
 import { isAdmin, isSystemAdmin, currentUser } from "./auth.js";
 import { loadClasses, getClassesCache } from "./classes.js";
 import { callFn } from "./functions-client.js";
@@ -244,7 +244,7 @@ function openTeacherModal(teacher = null) {
       </select>
     </div>
     <label>전화번호 <span class="dim-note">(로그인 시 이름과 함께 사용됩니다)</span></label>
-    <input id="f_phone" value="${escapeHtml(teacher?.phone || "")}" placeholder="010-0000-0000" />
+    <input id="f_phone" data-phone inputmode="tel" value="${escapeHtml(teacher?.phone || "")}" placeholder="010-0000-0000 (숫자만 입력)" />
     <label>주소</label>
     <input id="f_address" value="${escapeHtml(teacher?.address || "")}" />
     <label>이메일</label>
@@ -276,7 +276,11 @@ function openTeacherModal(teacher = null) {
 
   if (isEdit) {
     $("#deleteTeacherBtn").onclick = async () => {
-      if (!confirm(`"${teacher.name}" 교사 정보를 삭제할까요?`)) return;
+      if (!(await confirmTypeName({
+        title: "교사 삭제",
+        name: teacher.name,
+        bodyHtml: `<p>교사 정보${teacher.uid ? "와 <b>로그인 계정</b>" : ""}이 삭제되며 되돌릴 수 없습니다.</p><p class="dim-note">퇴임이나 접속 제한이 목적이라면 삭제하지 말고 목록의 "로그인 허용"을 끄거나, 새 학년도 편성에서 퇴임 처리해 주세요. 지난 학년도 교사 기록이 남습니다.</p>`
+      }))) return;
       try {
         if (teacher.uid) await callFn("adminDeleteAccount", { teacherId: teacher.id });
         await deleteDoc(doc(db, "teachers", teacher.id));
@@ -330,7 +334,7 @@ function openTeacherModal(teacher = null) {
       gender: $("#f_gender").value,
       birthday: $("#f_birthday").value || "",
       lunar: $("#f_lunar").value === "true",
-      phone: $("#f_phone").value.trim(),
+      phone: formatPhone($("#f_phone").value),
       address: $("#f_address").value.trim(),
       email: $("#f_email").value.trim(),
       note: $("#f_note").value.trim()
@@ -386,15 +390,19 @@ function openBulkImportModal() {
       const parts = parseDelimitedLine(line).map(p => p.trim());
       const [name, genderRaw, birthdayRaw, lunarRaw, phone, address, email, note] = parts;
       if (!name) { fail++; failedLines.push(line); continue; }
+      if (phoneDigits(phone).length >= 9 && getTeachersCache().some(o => String(o.name || "").replace(/\s+/g, "") === name.replace(/\s+/g, "") && phoneDigits(o.phone) === phoneDigits(phone))) {
+        fail++; failedLines.push(line + " (이미 등록된 교사)"); continue;
+      }
       const gender = (genderRaw === "여" || genderRaw === "F") ? "F" : "M";
       const birthday = /^\d{4}-\d{2}-\d{2}$/.test(birthdayRaw || "") ? birthdayRaw : "";
       const lunar = lunarRaw === "음력";
       try {
         await addDoc(collection(db, "teachers"), {
           name, gender, birthday, lunar,
-          phone: phone || "", address: address || "", email: email || "", note: note || "",
+          phone: formatPhone(phone), address: address || "", email: email || "", note: note || "",
           order: maxOrder + success + 1, createdAt: serverTimestamp()
         });
+        _teachersCache.push({ id: "tmp" + success, name, phone: formatPhone(phone) }); // 같은 파일 안의 중복 방지용(저장 후 다시 불러옴)
         success++;
       } catch (err) {
         fail++;
