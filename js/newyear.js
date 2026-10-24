@@ -227,7 +227,7 @@ function classRank(c) {
   m = n.match(/고\s*([1-3])/); if (m) return 4 + Number(m[1]);
   return 20 + (c.order || 0) / 100;
 }
-const allCurrent = () => [...liveClasses(), { id: "newcomer", name: "새친구", order: 999 }].sort((a, b) => classRank(a) - classRank(b));
+const allCurrent = () => [...liveClasses(), { id: "newcomer", name: "새친구", order: 999 }].sort((a, b) => (classRank(a) - classRank(b)) || ((a.order || 0) - (b.order || 0)) || String(a.id).localeCompare(String(b.id)));
 
 function destOptions(sel, withBlank = "— 선택 —", mixedLabel = "") {
   const d = S.draft;
@@ -255,7 +255,7 @@ function render() {
   const live = liveClasses();
   const cur = (id) => (getClassesCache().find(c => c.id === id) || {}).name || "";
   const cmap = new Map(allCurrent().map(c => [c.id, c]));
-  const students = rosterStudents().sort((a, b) => (classRank(cmap.get(a.classId)) - classRank(cmap.get(b.classId))) || (a.name || "").localeCompare(b.name || "", "ko"));
+  const students = rosterStudents().sort((a, b) => (classRank(cmap.get(a.classId)) - classRank(cmap.get(b.classId))) || ((cmap.get(a.classId)?.order || 0) - (cmap.get(b.classId)?.order || 0)) || String(a.classId).localeCompare(String(b.classId)) || (a.name || "").localeCompare(b.name || "", "ko"));
   const shown = students.filter(s => (S.filter.cls === "all" || s.classId === S.filter.cls) && (!S.filter.onlyUn || !d.assign[s.id]));
   const lt = S.lastTransition;
 
