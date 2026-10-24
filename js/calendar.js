@@ -126,8 +126,18 @@ function birthdaysOn(iso) {
 // ---------------------------------------------------------------------------
 // 화면 그리기
 // ---------------------------------------------------------------------------
-export async function initDashboardCalendar() {
-  const host = $("#dashboardCalendar");
+// 같은 달력을 두 곳에서 쓴다: 대시보드(#dashboardCalendar)와 "일정 > 월간 일정" 화면(#scheduleCalendar).
+// 달력 안의 id(calPanel 등)가 겹치지 않도록 한 번에 한 곳에만 그리고, 다른 쪽은 비워둔다.
+let hostId = "dashboardCalendar";
+const getHost = () => $("#" + hostId);
+
+export const initDashboardCalendar = () => initCalendarIn("dashboardCalendar");
+export const initScheduleCalendar = () => initCalendarIn("scheduleCalendar");
+
+async function initCalendarIn(id) {
+  hostId = id;
+  ["dashboardCalendar", "scheduleCalendar"].forEach(other => { if (other !== id) { const el = $("#" + other); if (el) el.innerHTML = ""; } });
+  const host = getHost();
   if (!host) return;
   loadPrefs();
   // 대시보드를 열 때마다 이번 달/오늘부터 시작
@@ -145,7 +155,7 @@ export async function initDashboardCalendar() {
 }
 
 function render() {
-  const host = $("#dashboardCalendar");
+  const host = getHost();
   if (!host) return;
   const { year, month } = state;
   const today = todayISO();

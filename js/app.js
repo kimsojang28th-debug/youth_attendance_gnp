@@ -13,6 +13,7 @@ import { initImportView } from "./import.js";
 import { initBirthdaysView } from "./birthdays.js";
 import { initYearlyPlanView } from "./yearlyplan.js";
 import { initTeachersView } from "./teachers.js";
+import { initScheduleCalendar } from "./calendar.js";
 
 const viewInitializers = {
   dashboard: initDashboardView,
@@ -27,6 +28,7 @@ const viewInitializers = {
   import: initImportView,
   birthdays: initBirthdaysView,
   yearlyplan: initYearlyPlanView,
+  schedule: initScheduleCalendar,
   teachers: initTeachersView
 };
 
@@ -35,8 +37,8 @@ const viewInitializers = {
 //   홈      : 대시보드
 //   입력    : 매주 직접 입력하는 화면 (출석체크, 예배정보입력)
 //   조회    : 입력한 결과를 보는 화면 (주간보고서, 연간출석부, 월별 생일자, 통계, 재적변동이력)
-//   인원    : 명단 관리 (재적부, 교사현황)
-//   운영    : 연 1~2회 손보는 설정성 항목 (연간계획, 반 관리)
+//   인원    : 명단/구성 관리 (재적부, 교사현황, 반 관리 - 반 관리는 관리자에게만 보임)
+//   일정    : 날짜 중심 화면 (월간 일정 달력, 연간계획)  ← "운영" 메뉴는 없앰(2026-10-24)
 // "출석 가져오기(import)"는 현재 쓰지 않아 메뉴에서만 뺐고, 화면/코드는 남겨둠(주소 #import 로는 열림).
 // PC 상단 드롭다운, 모바일 하단 탭바, 현재 위치(브레드크럼)가 모두 이 설정 하나에서 만들어진다.
 // ---------------------------------------------------------------------------
@@ -47,9 +49,12 @@ const MENU = [
     ["report", "주간보고서", "📝"], ["annual", "연간출석부", "📅"], ["birthdays", "월별 생일자", "🎂"],
     ["stats", "통계", "📊"], ["history", "재적변동이력", "🔄"]
   ] },
-  { id: "people", icon: "👥", label: "인원", views: [["students", "재적부", "📋"], ["teachers", "교사현황", "🧑‍🏫"]] },
-  { id: "admin", icon: "⚙️", label: "운영", views: [["yearlyplan", "연간계획", "🗓️"], ["classes", "반 관리", "🗂️"]] }
+  { id: "people", icon: "👥", label: "인원", views: [["students", "재적부", "📋"], ["teachers", "교사현황", "🧑‍🏫"], ["classes", "반 관리", "🗂️", "adminOnly"]] },
+  { id: "plan", icon: "🗓️", label: "일정", views: [["schedule", "월간 일정", "📆"], ["yearlyplan", "연간계획", "🗓️"]] }
 ];
+
+// 관리자 전용 항목(4번째 값이 "adminOnly")은 관리자에게만 메뉴에 보인다
+const groupViews = (g) => g.views.filter(v => v[3] !== "adminOnly" || isAdmin());
 
 const VIEW_META = {};
 MENU.forEach(g => g.views.forEach(([id, label, icon]) => { VIEW_META[id] = { group: g, label, icon }; }));
@@ -94,7 +99,7 @@ function renderMenus() {
       <div class="nav-group" data-group="${g.id}">
         <button type="button" class="nav-group-btn" data-group="${g.id}" aria-haspopup="true" aria-expanded="false">${g.icon} ${g.label} <span class="caret">▾</span></button>
         <div class="nav-dropdown"><div class="nav-dropdown-inner">
-          ${g.views.map(([id, label, icon]) => itemLink(id, label, icon, "nav-item")).join("")}
+          ${groupViews(g).map(([id, label, icon]) => itemLink(id, label, icon, "nav-item")).join("")}
         </div></div>
       </div>`;
   }).join("");
@@ -132,7 +137,7 @@ let openSheetGroup = null;
 function openSheet(group) {
   openSheetGroup = group.id;
   $("#sheetTitle").textContent = `${group.icon} ${group.label}`;
-  $("#sheetItems").innerHTML = group.views.map(([id, label, icon]) => itemLink(id, label, icon, "sheet-item")).join("");
+  $("#sheetItems").innerHTML = groupViews(group).map(([id, label, icon]) => itemLink(id, label, icon, "sheet-item")).join("");
   updateNavState(currentView);
   $("#groupSheet").classList.remove("hidden");
   $all(".tab").forEach(t => t.classList.toggle("sheet-open", t.dataset.group === group.id));
@@ -220,6 +225,7 @@ export async function goToAttendance(classId, date) {
 async function onLogin() {
   $("#loginScreen").classList.add("hidden");
   $("#app").classList.remove("hidden");
+  renderMenus(); // 관리자 전용 메뉴 항목(반 관리)을 로그인한 사용자에 맞춰 다시 그림
   if (isAdmin()) {
     try { await seedDefaultClassesIfEmpty(); } catch (err) { console.warn("기본 반 생성 실패:", err); }
   }
