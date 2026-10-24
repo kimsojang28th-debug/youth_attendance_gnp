@@ -3,12 +3,16 @@ rules_version = '2';
 // ============================================================
 // 청소년부 재적관리 프로그램 - Firestore 보안 규칙
 // ------------------------------------------------------------
-// - 로그인한 사용자만 데이터를 읽고 쓸 수 있습니다.
-// - classes / users 컬렉션은 관리자(부장)만 수정할 수 있습니다.
-// - students / attendance 는 관리자이거나, 본인이 담당하는 반(classIds)에
-//   한해서만 수정할 수 있습니다.
-// - Firebase 콘솔 > Firestore Database > 규칙 탭에 이 내용을 붙여넣고
-//   "게시(Publish)" 하세요. (README.md 4단계 참고)
+// - "회원"만 데이터를 읽고 쓸 수 있습니다. 회원이란:
+//     · 시스템 관리자(users 문서에 isSystem=true), 또는
+//     · 교사현황(teachers)에 등록되어 있고 로그인 허용 상태인 교사로 가입한 사람
+//   (users/{uid} 문서는 서버 기능(functions)만 만들고 수정합니다. 앱에서는 수정할 수 없음)
+// - 출석 기록은 모든 회원이 모든 반에 입력할 수 있습니다(교사 대리 진행 때문).
+// - 학생(재적부) 추가/수정/삭제는 관리자이거나 해당 반 담당교사(teachers.classIds)만 가능합니다.
+// - 반 / 교사현황 수정은 관리자만 가능하고, 교사의 관리자 지정(isAdmin)·계정(uid)은 서버 기능으로만 바꿀 수 있습니다.
+//
+// 배포: 이 폴더에서  firebase deploy --only firestore:rules   (또는 deploy-functions.ps1)
+//       또는 Firebase 콘솔 > Firestore Database > 규칙 탭에 붙여넣고 "게시"
 // ============================================================
 
 service cloud.firestore {
@@ -18,69 +22,92 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function myProfile() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    function myUserPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function myUser() {
+      return get(myUserPath()).data;
+    }
+
+    function myTeacher() {
+      return get(/databases/$(database)/documents/teachers/$(myUser().teacherId)).data;
+    }
+
+    // 시스템 관리자이거나, 명단에 있고 로그인 허용 상태인 교사
+    function isMember() {
+      return isSignedIn() && exists(myUserPath()) && (
+        myUser().get('isSystem', false) == true ||
+        (myUser().get('teacherId', null) != null && myTeacher().get('loginEnabled', true) != false)
+      );
     }
 
     function isAdmin() {
-      return isSignedIn() && myProfile().role == 'admin';
+      return isMember() && myUser().get('role', '') == 'admin';
     }
 
+    // 내 담당반 (교사현황의 classIds)
     function myClassIds() {
-      return isSignedIn() ? myProfile().classIds : [];
+      return (isMember() && myUser().get('teacherId', null) != null) ? myTeacher().get('classIds', []) : [];
     }
 
-    // 사용자(교사/관리자) 계정 정보 - 본인 문서는 조회 가능, 수정은 관리자만
+    // 사용자 계정 정보 - 본인 문서는 읽을 수 있고, 수정은 서버 기능만 가능(앱에서는 불가)
     match /users/{userId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow read: if isSignedIn() && (request.auth.uid == userId || isMember());
+      allow write: if false;
     }
 
-    // 반 목록 - 전체 조회 가능, 수정은 관리자만
+    // 반 목록 - 회원 조회, 수정은 관리자만
     match /classes/{classId} {
-      allow read: if isSignedIn();
+      allow read: if isMember();
       allow write: if isAdmin();
     }
 
-    // 재적부(학생) - 관리자는 전체, 교사는 본인 반만 생성/수정 가능
+    // 재적부(학생) - 조회는 회원 전체, 추가/수정/삭제는 관리자 또는 해당 반 담당교사
     match /students/{studentId} {
-      allow read: if isSignedIn();
-      allow create: if isAdmin() || (isSignedIn() && request.resource.data.classId in myClassIds());
-      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.classId in myClassIds());
+      allow read: if isMember();
+      allow create: if isAdmin() || (isMember() && request.resource.data.classId in myClassIds());
+      allow update, delete: if isAdmin() || (isMember() && resource.data.classId in myClassIds());
     }
 
-    // 출석 기록 - 관리자는 전체, 교사는 본인 반만 기록 가능
+    // 출석 기록 - 모든 회원이 모든 반을 입력/수정 가능(담당 교사 대신 다른 교사가 진행하는 경우가 많음), 삭제는 관리자만
     match /attendance/{docId} {
-      allow read: if isSignedIn();
-      allow create, update: if isAdmin() || (isSignedIn() && request.resource.data.classId in myClassIds());
+      allow read: if isMember();
+      allow create, update: if isMember();
       allow delete: if isAdmin();
     }
 
-    // 주간보고서 메타 정보(설교/헌금/심방 등) - 로그인한 누구나 입력 가능
+    // 주간보고서 메타 정보(설교/헌금/심방 등)
     match /weeklyMeta/{date} {
-      allow read, write: if isSignedIn();
+      allow read, write: if isMember();
     }
 
-    // 재적 변동 이력 - 로그인한 누구나 조회/기록/수정/삭제 가능
-    // (학생 삭제 시 관련 이력도 함께 삭제되는데, 이 때 담당 교사도 삭제할 수 있어야 하므로 admin으로 제한하지 않음)
+    // 재적 변동 이력
     match /rosterHistory/{historyId} {
-      allow read, create, update, delete: if isSignedIn();
+      allow read, create, update, delete: if isMember();
     }
 
-    // 연간계획(절기/교회행사/주일행사/청소년부행사/비고) - weeklyMeta와 동일하게 로그인한 누구나 등록/수정/삭제 가능
+    // 연간계획
     match /yearlyPlan/{date} {
-      allow read, write: if isSignedIn();
+      allow read, write: if isMember();
     }
 
-    // 대시보드 캘린더 일정(수련회/교사회의 등 날짜별 일정) - 연간계획과 동일하게 로그인한 누구나 조회/등록/수정/삭제 가능
+    // 대시보드 캘린더 일정
     match /events/{eventId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if isMember();
     }
 
-    // 교사현황(교사 연락처/생일/직분 등) - 조회는 로그인한 누구나, 추가/수정/삭제는 관리자만
+    // 교사현황 - 조회는 회원 전체, 추가/수정/삭제는 관리자만.
+    // 단, 관리자 지정(isAdmin)과 계정 연결(uid)은 서버 기능으로만 바꿀 수 있음(권한 상승 방지)
     match /teachers/{teacherId} {
-      allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow read: if isMember();
+      allow create: if isAdmin()
+        && !('isAdmin' in request.resource.data)
+        && !('uid' in request.resource.data);
+      allow update: if isAdmin()
+        && request.resource.data.get('isAdmin', false) == resource.data.get('isAdmin', false)
+        && request.resource.data.get('uid', null) == resource.data.get('uid', null);
+      allow delete: if isAdmin();
     }
   }
 }

@@ -2,7 +2,9 @@ import {
   db, collection, getDocs, addDoc, updateDoc, deleteDoc, query, orderBy, doc, serverTimestamp
 } from "./firebase-init.js";
 import { $, escapeHtml, openModal, closeModal, parseDelimitedLine } from "./utils.js";
-import { isAdmin } from "./auth.js";
+import { isAdmin, isSystemAdmin } from "./auth.js";
+import { loadClasses, getClassesCache } from "./classes.js";
+import { callFn } from "./functions-client.js";
 
 // "교사현황" 화면: 청소년부 교사(부장/총무/회계/서기/각 반 담당 교사 등) 연락처 명단.
 // 재적부(students.js)와 비슷한 구조지만 반 소속이 필수가 아니고(직분/담당은 자유 텍스트인 "비고"에 적음),
@@ -23,8 +25,35 @@ export function getTeachersCache() {
 }
 
 export async function initTeachersView() {
-  await loadTeachers(true);
+  await Promise.all([loadTeachers(true), loadClasses()]);
   renderTeachersView();
+}
+
+// ----- 계정(로그인) 관련 표시/동작 -----
+function classNamesOf(t) {
+  const map = Object.fromEntries(getClassesCache().map(c => [c.id, c.name]));
+  return (t.classIds || []).map(id => map[id]).filter(Boolean);
+}
+
+function accountBadge(t) {
+  const role = t.isAdmin ? ` <span class="badge badge-admin">관리자</span>` : "";
+  if (t.loginEnabled === false) return `<span class="badge badge-removed">로그인 제한</span>${role}`;
+  if (t.uid && t.resetRequested) return `<span class="badge badge-hold">재설정 요청</span>${role}`;
+  if (t.uid) return `<span class="badge badge-active">가입</span>${role}`;
+  return `<span class="badge badge-removed">미가입</span>${role}`;
+}
+
+async function resetPasswordOf(t) {
+  if (!confirm(`"${t.name}" 교사의 비밀번호를 초기화할까요?\n\n초기화하면 기존 비밀번호는 쓸 수 없게 되고, 교사가 로그인 화면에서 새 비밀번호를 두 번 입력해 다시 설정하게 됩니다.`)) return false;
+  try {
+    await callFn("adminResetPassword", { teacherId: t.id });
+  } catch (err) {
+    alert(`초기화하지 못했습니다: ${err.message || err}`);
+    return false;
+  }
+  await loadTeachers(true);
+  alert(`"${t.name}" 교사의 비밀번호를 초기화했습니다.\n교사에게 로그인 화면에서 새 비밀번호를 만들도록 안내해주세요.`);
+  return true;
 }
 
 function renderTeachersView() {
@@ -39,19 +68,21 @@ function renderTeachersView() {
           <button id="addTeacherBtn" class="btn btn-primary">+ 교사 추가</button>
           <button id="bulkImportTeacherBtn" class="btn">일괄등록</button>
         </div>`
-      : `<p class="dim-note" style="margin-bottom:12px;">교사 정보 추가/수정/삭제는 관리자(부장)만 할 수 있습니다.</p>`}
+      : `<p class="dim-note" style="margin-bottom:12px;">교사 정보 추가/수정/삭제는 관리자만 할 수 있습니다.</p>`}
     <div class="table-scroll">
     <table>
-      <thead><tr><th>이름</th><th>성별</th><th>전화번호</th><th>비고</th></tr></thead>
+      <thead><tr><th>이름</th><th>성별</th><th>전화번호</th><th>담당반</th>${admin ? `<th>계정</th>` : ""}<th>비고</th></tr></thead>
       <tbody>
         ${teachers.length ? teachers.map(t => `
           <tr data-id="${t.id}">
             <td><a href="#" class="student-name-link teacher-name-link" data-teacher-id="${t.id}">${escapeHtml(t.name)}</a></td>
             <td>${t.gender === "F" ? "여" : "남"}</td>
-            <td>${escapeHtml(t.phone || "-")}</td>
+            <td>${t.phone ? escapeHtml(t.phone) : (admin ? `<span class="dim-note">연락처 없음(로그인 불가)</span>` : "-")}</td>
+            <td>${classNamesOf(t).map(escapeHtml).join(", ") || "-"}</td>
+            ${admin ? `<td class="acct-cell">${accountBadge(t)}${t.uid ? ` <button class="btn btn-sm resetPwBtn" data-id="${t.id}">초기화</button>` : ""}</td>` : ""}
             <td>${escapeHtml(t.note || "-")}</td>
           </tr>
-        `).join("") : `<tr><td colspan="4"><p class="list empty">등록된 교사가 없습니다.</p></td></tr>`}
+        `).join("") : `<tr><td colspan="${admin ? 6 : 5}"><p class="list empty">등록된 교사가 없습니다.</p></td></tr>`}
       </tbody>
     </table>
     </div>
@@ -68,6 +99,12 @@ function renderTeachersView() {
   });
 
   if (!admin) return;
+  wrap.querySelectorAll(".resetPwBtn").forEach(btn => {
+    btn.onclick = async () => {
+      const t = getTeachersCache().find(x => x.id === btn.dataset.id);
+      if (t && await resetPasswordOf(t)) renderTeachersView();
+    };
+  });
   $("#addTeacherBtn").onclick = () => openTeacherModal();
   $("#bulkImportTeacherBtn").onclick = () => openBulkImportModal();
 }
@@ -83,6 +120,7 @@ export function openTeacherProfileModal(teacher) {
     <div class="profile-section">
       <div class="profile-field-row"><span class="profile-field-label">생일</span><span class="profile-field-value">${teacher.birthday ? `${escapeHtml(teacher.birthday)} (${teacher.lunar ? "음력" : "양력"})` : "-"}</span></div>
       <div class="profile-field-row"><span class="profile-field-label">전화번호</span><span class="profile-field-value">${escapeHtml(teacher.phone || "-")}</span></div>
+      <div class="profile-field-row"><span class="profile-field-label">담당반</span><span class="profile-field-value">${classNamesOf(teacher).map(escapeHtml).join(", ") || "-"}</span></div>
       <div class="profile-field-row"><span class="profile-field-label">주소</span><span class="profile-field-value">${escapeHtml(teacher.address || "-")}</span></div>
       <div class="profile-field-row"><span class="profile-field-label">이메일</span><span class="profile-field-value">${escapeHtml(teacher.email || "-")}</span></div>
     </div>
@@ -118,14 +156,27 @@ function openTeacherModal(teacher = null) {
         <option value="true" ${teacher?.lunar ? "selected" : ""}>음력</option>
       </select>
     </div>
-    <label>전화번호</label>
-    <input id="f_phone" value="${escapeHtml(teacher?.phone || "")}" />
+    <label>전화번호 <span class="dim-note">(로그인 시 이름과 함께 사용됩니다)</span></label>
+    <input id="f_phone" value="${escapeHtml(teacher?.phone || "")}" placeholder="010-0000-0000" />
     <label>주소</label>
     <input id="f_address" value="${escapeHtml(teacher?.address || "")}" />
     <label>이메일</label>
     <input id="f_email" value="${escapeHtml(teacher?.email || "")}" />
-    <label>비고 (직분/담당 반 등)</label>
-    <input id="f_note" value="${escapeHtml(teacher?.note || "")}" placeholder="예: 부장, 회계, 고2남 담당" />
+    <label>비고 (직분 등)</label>
+    <input id="f_note" value="${escapeHtml(teacher?.note || "")}" placeholder="예: 부장, 회계, 총무" />
+    <label>담당반 <span class="dim-note">(재적부에서 이 반 학생을 수정할 수 있고, 출석 화면의 기본 반이 됩니다. 출석 입력은 모든 반에서 가능)</span></label>
+    <div class="class-check-list">
+      ${getClassesCache().map(c => `<label class="class-check"><input type="checkbox" class="f_class" value="${c.id}" ${(teacher?.classIds || []).includes(c.id) ? "checked" : ""} /> ${escapeHtml(c.name)}</label>`).join("") || `<span class="dim-note">등록된 반이 없습니다.</span>`}
+    </div>
+    <label class="class-check" style="margin-top:12px;"><input type="checkbox" id="f_loginEnabled" ${teacher?.loginEnabled === false ? "" : "checked"} /> 로그인 허용 <span class="dim-note">(해제하면 이 교사는 접속할 수 없습니다)</span></label>
+    ${isEdit ? `
+    <div class="acct-box">
+      <div><b>계정 상태</b> ${accountBadge(teacher)}</div>
+      <div class="acct-actions">
+        ${teacher.uid ? `<button id="resetPwInModal" class="btn btn-sm">비밀번호 초기화</button>` : `<span class="dim-note">아직 가입 전입니다. 교사가 로그인 화면에서 직접 가입합니다.</span>`}
+        ${isSystemAdmin() ? `<button id="toggleAdminBtn" class="btn btn-sm">${teacher.isAdmin ? "일반관리자 해제" : "일반관리자로 지정"}</button>` : ""}
+      </div>
+    </div>` : ""}
     <div class="modal-actions">
       ${isEdit ? `<button id="deleteTeacherBtn" class="btn btn-danger">삭제</button>` : ""}
       <button id="cancelBtn" class="btn">취소</button>
@@ -140,6 +191,7 @@ function openTeacherModal(teacher = null) {
     $("#deleteTeacherBtn").onclick = async () => {
       if (!confirm(`"${teacher.name}" 교사 정보를 삭제할까요?`)) return;
       try {
+        if (teacher.uid) await callFn("adminDeleteAccount", { teacherId: teacher.id });
         await deleteDoc(doc(db, "teachers", teacher.id));
       } catch (err) {
         $("#teacherModalMsg").textContent = `삭제 중 오류가 발생했습니다: ${err.message || err}`;
@@ -151,10 +203,42 @@ function openTeacherModal(teacher = null) {
     };
   }
 
+  if (isEdit) {
+    const resetBtn = $("#resetPwInModal");
+    if (resetBtn) resetBtn.onclick = async () => {
+      if (await resetPasswordOf(teacher)) { closeModal(); renderTeachersView(); }
+    };
+    const roleBtn = $("#toggleAdminBtn");
+    if (roleBtn) roleBtn.onclick = async () => {
+      const make = !teacher.isAdmin;
+      if (!confirm(make
+        ? `"${teacher.name}" 교사를 일반관리자로 지정할까요?\n(교사·반·재적 관리와 다른 교사의 비밀번호 초기화를 할 수 있게 됩니다.)`
+        : `"${teacher.name}" 교사의 일반관리자 권한을 해제할까요?`)) return;
+      try {
+        await callFn("adminSetRole", { teacherId: teacher.id, admin: make });
+      } catch (err) {
+        $("#teacherModalMsg").textContent = `변경하지 못했습니다: ${err.message || err}`;
+        return;
+      }
+      await loadTeachers(true);
+      closeModal();
+      renderTeachersView();
+    };
+  }
+
   $("#saveTeacherBtn").onclick = async () => {
     const name = $("#f_name").value.trim();
     if (!name) { $("#teacherModalMsg").textContent = "이름을 입력해주세요."; return; }
+    const phoneVal = $("#f_phone").value.trim();
+    const digits = (v) => String(v || "").replace(/\D/g, "");
+    const norm = (v) => String(v || "").replace(/\s+/g, "");
+    if (digits(phoneVal) && getTeachersCache().some(o => o.id !== teacher?.id && norm(o.name) === norm(name) && digits(o.phone) === digits(phoneVal))) {
+      $("#teacherModalMsg").textContent = "같은 이름과 연락처의 교사가 이미 등록되어 있습니다.";
+      return;
+    }
     const data = {
+      classIds: [...document.querySelectorAll(".f_class:checked")].map(el => el.value),
+      loginEnabled: $("#f_loginEnabled").checked,
       name,
       gender: $("#f_gender").value,
       birthday: $("#f_birthday").value || "",

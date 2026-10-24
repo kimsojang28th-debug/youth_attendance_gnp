@@ -5,7 +5,7 @@ import { loadClasses, getClassesCache } from "./classes.js";
 import {
   $, $all, escapeHtml, STUDENT_STATUS_LABEL, openModal, closeModal, todayISO, parseDelimitedLine, sortByName
 } from "./utils.js";
-import { isAdmin, currentUser } from "./auth.js";
+import { isAdmin, canEditClass } from "./auth.js";
 import { addHistoryRecord, deleteHistoryForStudent } from "./history.js";
 import { requestAnnualClass } from "./annual.js";
 
@@ -34,7 +34,9 @@ export function studentThumbHtml(student) {
 
 export async function initStudentsView() {
   const classes = await loadClasses();
-  const visibleClasses = isAdmin() ? classes : classes.filter(c => currentUser.classIds.includes(c.id));
+  // 재적부 조회는 모든 교사가 전체 반을 볼 수 있고, 학생 추가/수정/삭제는 관리자 또는 해당 반 담당교사만 가능
+  const visibleClasses = classes;
+  const editableClasses = classes.filter(c => canEditClass(c.id));
 
   const classFilter = $("#studentsClassFilter");
   classFilter.innerHTML = `<option value="all">전체 반</option>` +
@@ -43,7 +45,12 @@ export async function initStudentsView() {
   $("#studentsClassFilter").onchange = renderStudentsTable;
   $("#studentsStatusFilter").onchange = renderStudentsTable;
   $("#addStudentBtn").onclick = () => openStudentModal();
-  $("#bulkImportBtn").onclick = () => openBulkImportModal(visibleClasses);
+  $("#bulkImportBtn").onclick = () => openBulkImportModal(editableClasses);
+  // 담당반이 없는 교사는 학생을 추가/일괄등록/졸업처리 할 수 없으므로 버튼을 숨김
+  ["addStudentBtn", "bulkImportBtn", "studentsBulkGraduateBtn"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle("hidden", editableClasses.length === 0);
+  });
   $("#studentsBulkGraduateBtn").onclick = handleBulkGraduate;
 
   await loadStudents(true);
@@ -57,7 +64,7 @@ async function handleBulkGraduate() {
   const wrap = $("#studentsTableWrap");
   const checkedIds = $all(".studentRowCheck:checked", wrap).map(cb => cb.closest("tr").dataset.id);
   if (!checkedIds.length) return;
-  const targets = _studentsCache.filter(s => checkedIds.includes(s.id) && s.status !== "graduated");
+  const targets = _studentsCache.filter(s => checkedIds.includes(s.id) && s.status !== "graduated" && canEditClass(s.classId));
   if (!targets.length) {
     alert("선택한 학생은 이미 모두 졸업 처리되어 있습니다.");
     return;
@@ -93,10 +100,8 @@ async function renderStudentsTable() {
   const status = $("#studentsStatusFilter").value;
   const classes = getClassesCache();
   const classMap = Object.fromEntries(classes.map(c => [c.id, c.name]));
-  const allowed = isAdmin() ? null : new Set(currentUser.classIds);
 
   let list = _studentsCache.filter(s => {
-    if (allowed && !allowed.has(s.classId)) return false;
     if (classId !== "all" && s.classId !== classId) return false;
     if (status !== "all" && s.status !== status) return false;
     return true;
@@ -123,7 +128,7 @@ async function renderStudentsTable() {
       <tbody>
         ${list.map(s => `
           <tr data-id="${s.id}">
-            <td><input type="checkbox" class="studentRowCheck" /></td>
+            <td>${canEditClass(s.classId) ? `<input type="checkbox" class="studentRowCheck" />` : ""}</td>
             <td>
               <span class="student-name-cell">
                 ${studentThumbHtml(s)}
@@ -135,7 +140,7 @@ async function renderStudentsTable() {
             <td><span class="badge badge-${s.status}">${STUDENT_STATUS_LABEL[s.status] || s.status}</span></td>
             <td>${escapeHtml(s.phone || "")}</td>
             <td>${escapeHtml(s.school || "")}</td>
-            <td><button class="btn btn-sm editStudentBtn">수정</button></td>
+            <td>${canEditClass(s.classId) ? `<button class="btn btn-sm editStudentBtn">수정</button>` : ""}</td>
           </tr>
         `).join("")}
       </tbody>
@@ -340,7 +345,7 @@ function resizeImageToDataUrl(file, maxSize = 320, quality = 0.75) {
 function openStudentModal(student = null) {
   const classes = getClassesCache();
   const classMap = Object.fromEntries(classes.map(c => [c.id, c.name]));
-  const visible = isAdmin() ? classes : classes.filter(c => currentUser.classIds.includes(c.id));
+  const visible = classes.filter(c => canEditClass(c.id)); // 수정/추가 가능한 반(관리자는 전체)
   const isEdit = !!student;
 
   let pendingPhotoDataUrl = null; // 사용자가 이번에 새로 고른 사진(아직 저장 전)

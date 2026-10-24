@@ -28,14 +28,18 @@ let _currentStudentCount = 0;
 
 export async function initAttendanceView() {
   const classes = await loadClasses();
-  const visible = isAdmin() ? classes : classes.filter(c => currentUser.classIds.includes(c.id));
+  // 담당 교사가 못 나온 날 다른 교사가 대신 진행하는 경우가 많아서, 출석은 모든 교사가 모든 반에서 입력할 수 있음
+  const visible = classes;
   const select = $("#attendanceClassSelect");
   select.innerHTML = visible.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
   // 마지막으로 출석체크한 반을 기억해서 다음에 열 때 자동 선택 (담당 교사는 매주 같은 반을 고르기 때문)
   // 날짜는 기억하지 않음 - 기본값(가장 가까운 주일)이 이미 "이번 주"이고, 기억하면 지난 주가 열릴 위험이 있음
   try {
     const last = localStorage.getItem("youth:lastAttendanceClass");
-    if (last && select.querySelector(`option[value="${last}"]`)) select.value = last;
+    const has = (id) => id && select.querySelector(`option[value="${id}"]`);
+    // 마지막으로 체크한 반 -> 없으면 내 담당반 -> 없으면 첫 번째 반
+    const pick = has(last) ? last : currentUser.classIds.find(has);
+    if (pick) select.value = pick;
   } catch (e) { /* 저장소를 못 쓰는 환경이면 무시 */ }
 
   // 연도를 먼저 고르고 그 연도의 주일만 보이도록 함 (기본값: 올해)

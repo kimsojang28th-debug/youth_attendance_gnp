@@ -6,6 +6,7 @@ import { $, escapeHtml, nearestSundayISO, friendlyFirestoreError } from "./utils
 import { isAdmin, currentUser } from "./auth.js";
 import { goToAttendance } from "./app.js";
 import { db, doc, getDoc } from "./firebase-init.js";
+import { loadTeachers } from "./teachers.js";
 import { initDashboardCalendar } from "./calendar.js";
 
 export async function initDashboardView() {
@@ -13,7 +14,7 @@ export async function initDashboardView() {
   await loadStudents(true); // 항상 최신 데이터로 새로고침 (다른 화면/탭에서 방금 삭제한 내용이 바로 반영되도록)
   // 캘린더는 나머지 대시보드 내용과 따로(동시에) 불러와서, 어느 한쪽이 느리거나 실패해도 다른 쪽에 영향을 주지 않게 함
   const calendarReady = initDashboardCalendar().catch(err => console.error("캘린더 로딩 실패", err));
-  const visible = isAdmin() ? classes : classes.filter(c => currentUser.classIds.includes(c.id));
+  const visible = classes; // 대리 진행이 많아 모든 교사가 전체 반을 봄
   const visibleIds = visible.map(c => c.id);
   const students = getStudentsCache().filter(s => visibleIds.includes(s.classId));
 
@@ -137,7 +138,18 @@ async function renderTodo(date, visibleRows) {
     ? `<span class="badge badge-active">✔ 입력 완료</span>`
     : `<span class="badge badge-hold">미입력</span>`;
 
+  // 관리자에게만: 비밀번호 재설정을 요청한 교사가 있으면 알림
+  let resetCount = 0;
+  if (isAdmin()) {
+    try { resetCount = (await loadTeachers(true)).filter(t => t.uid && t.resetRequested).length; }
+    catch (err) { console.warn("재설정 요청 확인 실패", err); }
+  }
+  const resetAlert = resetCount
+    ? `<a href="#teachers" class="todo-alert">🔑 비밀번호 재설정 요청이 <b>${resetCount}건</b> 있습니다. <span>교사현황에서 초기화하기 ›</span></a>`
+    : "";
+
   $("#dashboardTodo").innerHTML = `
+    ${resetAlert}
     <div class="todo-head"><h3>이번 주 할 일</h3><span class="dim-note">${date} 주일 기준</span></div>
     <div class="todo-grid">
       <a href="#attendance" class="todo-card">

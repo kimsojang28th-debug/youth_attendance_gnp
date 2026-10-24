@@ -37,21 +37,37 @@
     <h1>청소년부 재적관리</h1>
     <p class="login-tag">청소년부 출석·재적 관리</p>
     <div class="login-box">
-      <h2 class="login-card-title">로그인</h2>
-      <p class="sub">교사/부장 계정으로 로그인해주세요.</p>
-      <form id="loginForm">
-        <label for="loginEmail">이메일</label>
-        <input type="email" id="loginEmail" required placeholder="you@example.com" />
-        <label for="loginPassword">비밀번호</label>
-        <input type="password" id="loginPassword" required placeholder="비밀번호" />
-        <button type="submit" class="btn btn-primary btn-block">로그인</button>
+      <div class="login-head">
+        <h2 class="login-card-title">로그인</h2>
+        <span class="login-for">교사 전용</span>
+      </div>
+      <form id="loginForm" autocomplete="on">
+        <div class="login-two">
+          <input type="text" id="loginName" required placeholder="이름" autocomplete="name" />
+          <input type="tel" id="loginPhone" required placeholder="연락처 (010-0000-0000)" inputmode="numeric" autocomplete="tel" />
+        </div>
+        <div class="pw-wrap">
+          <input type="password" id="loginPassword" required placeholder="비밀번호 (6자리 이상)" autocomplete="current-password" />
+          <button type="button" class="pw-toggle" data-target="loginPassword">보기</button>
+        </div>
+        <div id="loginConfirmWrap" class="hidden">
+          <div class="pw-wrap">
+            <input type="password" id="loginPassword2" placeholder="비밀번호를 한 번 더 입력" autocomplete="new-password" />
+            <button type="button" class="pw-toggle" data-target="loginPassword2">보기</button>
+          </div>
+        </div>
+        <button type="submit" id="loginSubmit" class="btn btn-primary btn-block">로그인 / 시작하기</button>
       </form>
       <p id="loginError" class="error-text"></p>
-      <details class="admin-hint">
-        <summary>처음 사용하시나요?</summary>
-        <p>관리자(부장님) 계정이 없다면 Firebase 콘솔 &gt; Authentication에서 먼저 계정을 만들고, Firestore의 <code>users</code> 컬렉션에 role을 <code>admin</code>으로 등록해주세요. 자세한 방법은 README.md를 참고하세요.</p>
-      </details>
+      <p class="login-foot">처음 접속하시면 입력하신 정보로 자동 가입됩니다.<br />(청소년부 교사 명단에 등록된 분만 가능)</p>
+      <button type="button" id="resetRequestBtn" class="login-link">비밀번호를 잊으셨나요? 재설정 요청</button>
     </div>
+    <button type="button" id="sysLoginToggle" class="login-link login-link-dim">시스템 관리자 로그인</button>
+    <form id="sysLoginForm" class="login-box login-sys hidden">
+      <input type="email" id="sysEmail" required placeholder="관리자 이메일" autocomplete="username" />
+      <input type="password" id="sysPassword" required placeholder="비밀번호" autocomplete="current-password" />
+      <button type="submit" class="btn btn-block">관리자 로그인</button>
+    </form>
   </div>
 </div>
 

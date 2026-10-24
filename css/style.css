@@ -781,3 +781,39 @@ td.annual-this-week { background: rgba(35, 64, 95, 0.07); }
   .plan-table td { min-width: 110px; }
   .plan-table .plan-month-cell, .plan-table .plan-date-cell { min-width: 0; }
 }
+
+/* ===== 로그인 (이름 + 연락처 + 비밀번호) ===== */
+.login-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.login-head .login-card-title { margin: 0; }
+.login-for { font-size: 12px; color: var(--text-muted); background: var(--bg); border: 1px solid var(--border); padding: 3px 9px; border-radius: 999px; }
+.login-two { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 8px; margin-bottom: 10px; }
+.login-box .pw-wrap { position: relative; margin-bottom: 10px; }
+.login-box .pw-wrap input { padding-right: 58px; }
+.pw-toggle {
+  position: absolute; right: 6px; top: 6px; height: 34px; padding: 0 10px; border: 0; background: transparent;
+  color: var(--primary); font-weight: 700; font-size: 13px; cursor: pointer;
+}
+.login-box .btn-block { margin-top: 6px; }
+.error-text.ok { color: var(--primary); }
+.login-foot { margin: 14px 0 6px; text-align: center; color: var(--text-muted); font-size: 12.5px; line-height: 1.55; }
+.login-link {
+  display: block; margin: 6px auto 0; background: none; border: 0; color: var(--primary);
+  font-size: 13px; font-weight: 700; cursor: pointer; padding: 6px 4px; text-align: center; width: 100%;
+}
+.login-link-dim { margin-top: 14px; color: var(--text-muted); font-weight: 500; font-size: 12.5px; width: auto; }
+.login-sys { margin-top: 8px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.login-sys .btn-block { margin-top: 2px; height: 42px; font-size: 14px; }
+
+/* ===== 교사현황: 계정/담당반 ===== */
+.badge-admin { background: var(--primary); color: #fff; }
+.acct-cell { white-space: nowrap; }
+.class-check-list { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 4px 0 2px; }
+.class-check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; margin: 0; cursor: pointer; }
+.class-check input { width: auto; height: auto; }
+.acct-box { margin-top: 14px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg); }
+.acct-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.todo-alert {
+  display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin-bottom: 12px; padding: 12px 14px;
+  background: #fff4e0; border: 1px solid #f0cf94; border-radius: 12px; color: #7a4b00; font-size: 14px; text-decoration: none;
+}
+.todo-alert span { color: var(--primary); font-weight: 700; }

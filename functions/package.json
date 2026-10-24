@@ -1,0 +1,11 @@
+{
+  "name": "youth-attendance-functions",
+  "description": "청소년부 재적관리 - 로그인/가입/비밀번호 초기화 서버 기능",
+  "private": true,
+  "main": "index.js",
+  "engines": { "node": "22" },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^6.1.0"
+  }
+}

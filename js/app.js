@@ -232,8 +232,10 @@ function onLogout() {
   currentView = null;
   $("#app").classList.add("hidden");
   $("#loginScreen").classList.remove("hidden");
-  $("#loginEmail").value = "";
-  $("#loginPassword").value = "";
+  ["loginPassword", "loginPassword2", "sysPassword"].forEach(id => { const el = document.getElementById(id); if (el) el.value = ""; });
+  $("#loginConfirmWrap").classList.add("hidden");
+  $("#loginSubmit").disabled = false;
+  $("#loginSubmit").textContent = "로그인 / 시작하기";
 }
 
 setupNav();
