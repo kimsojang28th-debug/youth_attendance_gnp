@@ -36,6 +36,12 @@ export async function getLiveYear() {
   return Number(s.liveYear) || DEFAULT_LIVE_YEAR;
 }
 
+// 지난 학년도 날짜인지 (지난 학년도 출석/예배정보는 관리자만 수정)
+export async function isPastDate(date) {
+  const y = Number(String(date || "").slice(0, 4));
+  return !!y && y < await getLiveYear();
+}
+
 export function invalidateTerms() {
   _settings = null;
   _archivedYears = null;

@@ -11,7 +11,7 @@ import {
   db, collection, doc, getDoc, getDocs, setDoc, deleteDoc, writeBatch, serverTimestamp, query, where, limit
 } from "./firebase-init.js";
 import { $, escapeHtml, openModal, closeModal, todayISO, sortByName } from "./utils.js";
-import { isAdmin, currentUser } from "./auth.js";
+import { isAdmin, isSystemAdmin, currentUser } from "./auth.js";
 import { loadClasses, getClassesCache } from "./classes.js";
 import { loadStudents, getStudentsCache } from "./students.js";
 import { loadTeachers, getTeachersCache } from "./teachers.js";
@@ -26,6 +26,20 @@ const rid = () => Math.random().toString(36).slice(2, 9);
 const byOrder = (a, b) => (a.order || 0) - (b.order || 0);
 const digits = (v) => String(v || "").replace(/\D/g, "");
 const wrap = () => $("#view-newyear");
+
+// 전환 가능 시작일: 현재 학년도 12월 마지막 주일의 다음 날
+function lastSundayISO(year) {
+  const d = new Date(Date.UTC(year, 11, 31));
+  d.setUTCDate(d.getUTCDate() - d.getUTCDay());
+  return d.toISOString().slice(0, 10);
+}
+function unlockISO(year) {
+  const d = new Date(lastSundayISO(year) + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+const isLocked = () => todayISO() < unlockISO(S.liveYear);
+const fmtKo = (iso) => `${Number(iso.slice(5, 7))}월 ${Number(iso.slice(8, 10))}일`;
 
 const liveClasses = () => [...getClassesCache()].filter(c => c.id !== "newcomer").sort(byOrder);
 const rosterStudents = () => getStudentsCache().filter(s => IN_SCOPE.includes(s.status));
@@ -186,7 +200,11 @@ function updateSummary() {
   const el = $("#nwSummary");
   if (el) el.innerHTML = summaryHtml();
   const btn = $("#nwApplyBtn");
-  if (btn) btn.disabled = analyze().blockers.length > 0;
+  if (btn) btn.disabled = analyze().blockers.length > 0 || isLocked();
+  const ln = $("#nwLockNote");
+  if (ln) ln.innerHTML = isLocked()
+    ? `🔒 ${S.liveYear}년 12월 마지막 주일(${fmtKo(lastSundayISO(S.liveYear))}) 출석 입력이 끝난 뒤, <b>${fmtKo(unlockISO(S.liveYear))}부터</b> 전환할 수 있습니다.`
+    : "";
   // 반 구성 표의 학생 수/담당 교사 칸
   const a = analyze();
   a.perClass.forEach(({ c, kids, tNames }) => {
@@ -295,7 +313,9 @@ function render() {
       <div id="nwSummary"></div>
       <div class="nw-actions">
         <button class="btn" id="nwApplyBtn">${S.year} 학년도로 전환 적용…</button>
+        ${isSystemAdmin() ? `<button class="btn btn-secondary hidden" id="nwForceBtn">잠금 무시하고 전환 (시스템 관리자)…</button>` : ""}
       </div>
+      <p class="dim-note" id="nwLockNote"></p>
     </section>
 
     ${lt && lt.year ? `<section class="nw-sec"><h3>되돌리기</h3>
@@ -377,7 +397,15 @@ function bind() {
     change();
   });
 
-  $("#nwApplyBtn").onclick = openApplyModal;
+  $("#nwApplyBtn").onclick = () => openApplyModal(false);
+  const fb = $("#nwForceBtn");
+  if (fb) {
+    fb.classList.toggle("hidden", !isLocked());
+    fb.onclick = () => {
+      if (!confirm(`아직 전환 가능일(${fmtKo(unlockISO(S.liveYear))}) 전입니다.\n${S.liveYear}년 마지막 주일 출석을 입력하기 전에 전환하면 그 출석이 새 반 기준으로 들어갑니다.\n그래도 진행할까요?`)) return;
+      openApplyModal(true);
+    };
+  }
   const u = $("#nwUndoBtn");
   if (u) u.onclick = undoTransition;
 }
@@ -385,13 +413,21 @@ function bind() {
 // ---------------------------------------------------------------------------
 // 전환 적용
 // ---------------------------------------------------------------------------
-function openApplyModal() {
+async function openApplyModal(force = false) {
   const a = analyze();
   if (a.blockers.length) return alert("먼저 점검 항목을 해결해주세요.");
+  if (isLocked() && !force) return alert(`${fmtKo(unlockISO(S.liveYear))}부터 전환할 수 있습니다.`);
+  // 마지막 주일 출석이 입력되어 있는지 확인
+  let noAtt = false;
+  try {
+    const r = await getDocs(query(collection(db, "attendance"), where("date", "==", lastSundayISO(S.liveYear)), limit(1)));
+    noAtt = r.empty;
+  } catch (e) { /* 확인 실패 시 경고 생략 */ }
   openModal(`
     <h3>${S.year} 학년도로 전환</h3>
     <p>지금부터 모든 화면이 <b>${S.year} 학년도 편성</b> 기준으로 바뀝니다. ${S.liveYear} 학년도 명부는 그대로 보관됩니다.</p>
     <ul class="nw-list"><li>학생 ${a.total}명 중 졸업 ${a.graduating.length}명, 새친구 유지 ${a.staying.length}명</li><li>새 학년도 반 ${S.draft.classes.length}개</li><li>퇴임 교사 ${a.retiring.length}명, 신규 교사 ${S.draft.newTeachers.length}명</li></ul>
+    ${noAtt ? `<ul class="nw-list bad"><li>⛔ ${fmtKo(lastSundayISO(S.liveYear))}(마지막 주일) 출석 기록이 하나도 없습니다. 입력을 깜빡하지 않았는지 확인하세요. 전환 후에는 지난 학년도 출석을 관리자만 고칠 수 있습니다.</li></ul>` : ""}
     ${a.warnings.length ? `<ul class="nw-list warn">${[...new Set(a.warnings)].map(m => `<li>⚠️ ${escapeHtml(m)}</li>`).join("")}</ul>` : ""}
     <p class="dim-note">확인을 위해 <b>${S.year}</b> 를 입력해주세요. (백업을 먼저 받아 두는 것을 권장합니다)</p>
     <input type="text" id="nwConfirmYear" inputmode="numeric" placeholder="${S.year}">
@@ -399,6 +435,7 @@ function openApplyModal() {
   $("#nwCancel").onclick = closeModal;
   $("#nwGo").onclick = async () => {
     if ($("#nwConfirmYear").value.trim() !== String(S.year)) return alert(`${S.year} 를 정확히 입력해주세요.`);
+    if (noAtt && !confirm("마지막 주일 출석 기록이 없습니다. 그래도 전환할까요?")) return;
     $("#nwGo").disabled = true; $("#nwGo").textContent = "적용 중... (창을 닫지 마세요)";
     try { await applyTransition(); closeModal(); alert(`${S.year} 학년도로 전환했습니다.`); location.hash = "#dashboard"; location.reload(); }
     catch (err) { console.error(err); alert("전환 중 오류: " + (err.message || err) + "\n\n일부만 적용됐을 수 있습니다. 새로고침 후 '직전 전환 되돌리기'를 사용하거나 문의해주세요."); closeModal(); }

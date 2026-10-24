@@ -3,7 +3,8 @@ import {
   $, escapeHtml, nearestSundayISO, toast,
   yearSelectOptionsHtml, sundayOptionsHtmlForYear, getSundaysOfYear
 } from "./utils.js";
-import { currentUser } from "./auth.js";
+import { currentUser, isAdmin } from "./auth.js";
+import { isPastDate } from "./terms.js";
 
 // "예배정보입력" 화면: 설교/헌금/심방/실시예정 등 weeklyMeta 문서를 입력하는 화면.
 // (반별 출석체크를 각 교사가 입력하는 것처럼, 이 화면은 예배 관련 정보를 입력하는 용도이고
@@ -76,6 +77,10 @@ async function renderWorshipForm() {
   `;
 
   $("#saveMetaBtn").onclick = async () => {
+    if (!isAdmin() && await isPastDate(date)) {
+      alert("지난 학년도 예배정보는 관리자만 수정할 수 있습니다.");
+      return;
+    }
     await setDoc(doc(db, "weeklyMeta", date), {
       date,
       sermonText: $("#m_sermonText").value,

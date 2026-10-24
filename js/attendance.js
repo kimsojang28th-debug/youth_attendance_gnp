@@ -6,7 +6,7 @@ import {
   yearSelectOptionsHtml, sundayOptionsHtmlForYear, getSundaysOfYear
 } from "./utils.js";
 import { isAdmin, currentUser } from "./auth.js";
-import { rosterForYear } from "./terms.js";
+import { rosterForYear, isPastDate } from "./terms.js";
 
 export function attendanceDocId(classId, date) {
   return `${classId}_${date}`;
@@ -191,6 +191,10 @@ async function handleSaveAttendance() {
   const classId = $("#attendanceClassSelect").value;
   const date = $("#attendanceDate").value;
   if (!classId || !date) return;
+  if (!isAdmin() && await isPastDate(date)) {
+    alert("지난 학년도 출석은 관리자만 수정할 수 있습니다.");
+    return;
+  }
   await saveAttendanceDoc(classId, date, _currentRecords, _currentNotes);
   toast(`${date} 출석이 저장되었습니다.`, $("#attendanceSaveMsg"));
 }

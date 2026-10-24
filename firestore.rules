@@ -30,6 +30,13 @@ service cloud.firestore {
       return get(myUserPath()).data;
     }
 
+    // 현재 학년도(settings/app.liveYear, 없으면 2026). 지난 학년도 날짜의 출석/예배정보는 관리자만 수정
+    function liveYear() {
+      return exists(/databases/$(database)/documents/settings/app)
+        ? get(/databases/$(database)/documents/settings/app).data.get('liveYear', 2026)
+        : 2026;
+    }
+
     function myTeacher() {
       return get(/databases/$(database)/documents/teachers/$(myUser().teacherId)).data;
     }
@@ -73,13 +80,15 @@ service cloud.firestore {
     // 출석 기록 - 모든 회원이 모든 반을 입력/수정 가능(담당 교사 대신 다른 교사가 진행하는 경우가 많음), 삭제는 관리자만
     match /attendance/{docId} {
       allow read: if isMember();
-      allow create, update: if isMember();
+      allow create, update: if isMember()
+        && (isAdmin() || int(request.resource.data.date[0:4]) >= liveYear());
       allow delete: if isAdmin();
     }
 
     // 주간보고서 메타 정보(설교/헌금/심방 등)
     match /weeklyMeta/{date} {
-      allow read, write: if isMember();
+      allow read: if isMember();
+      allow write: if isMember() && (isAdmin() || int(date[0:4]) >= liveYear());
     }
 
     // 재적 변동 이력
