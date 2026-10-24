@@ -101,7 +101,7 @@ export async function initNewYearView() {
   }
   S = {
     liveYear, year, draft: draft || defaultDraft(), dirty: false, timer: null, savedAt: savedAt ? new Date() : null,
-    hasSaved: !!draft, lastTransition: settings.lastTransition || null, filter: { cls: "all", onlyUn: false }, selected: new Set()
+    hasSaved: !!draft, lastTransition: settings.lastTransition || null, sort: "grade", filter: { cls: "all", onlyUn: false }, selected: new Set()
   };
   render();
 }
@@ -218,17 +218,35 @@ function updateSummary() {
 // ---------------------------------------------------------------------------
 // 화면
 // ---------------------------------------------------------------------------
-function destOptions(sel, withBlank = "— 선택 —") {
+// 학년 순서: 초 < 중1~3 < 고1~3 < (학년 표시 없는 반: 반 관리 순서) < 새친구
+function classRank(c) {
+  if (!c || c.id === "newcomer") return 99;
+  const n = c.name || "";
+  let m = n.match(/초\s*([1-6])/); if (m) return Number(m[1]) / 10;
+  m = n.match(/중\s*([1-3])/); if (m) return 1 + Number(m[1]);
+  m = n.match(/고\s*([1-3])/); if (m) return 4 + Number(m[1]);
+  return 20 + (c.order || 0) / 100;
+}
+const allCurrent = () => [...liveClasses(), { id: "newcomer", name: "새친구", order: 999 }].sort((a, b) => classRank(a) - classRank(b));
+
+function destOptions(sel, withBlank = "— 선택 —", mixedLabel = "") {
   const d = S.draft;
   return `<option value="">${withBlank}</option>` +
+    (mixedLabel ? `<option value="__mixed" selected disabled>${mixedLabel}</option>` : "") +
     d.classes.map(c => `<option value="${c.id}" ${sel === c.id ? "selected" : ""}>${escapeHtml(c.name || "(이름 없음)")}</option>`).join("") +
     `<option value="newcomer" ${sel === "newcomer" ? "selected" : ""}>새친구 유지</option>` +
     `<option value="graduate" ${sel === "graduate" ? "selected" : ""}>졸업</option>`;
 }
 
+const ddLabel = (ids) => {
+  const names = S.draft.classes.filter(c => (ids || []).includes(c.id)).map(c => c.name || "(이름 없음)");
+  return names.length ? names.join(", ") : "선택 안 함";
+};
 function classCheckboxes(classIds, attrs) {
   if (!S.draft.classes.length) return `<span class="dim-note">반을 먼저 만드세요</span>`;
-  return S.draft.classes.map(c => `<label class="class-check"><input type="checkbox" ${attrs} data-cid="${c.id}" ${(classIds || []).includes(c.id) ? "checked" : ""}> ${escapeHtml(c.name || "(이름 없음)")}</label>`).join("");
+  return `<details class="nw-dd"><summary>담당반: <b>${escapeHtml(ddLabel(classIds))}</b></summary><div class="nw-dd-list">` +
+    S.draft.classes.map(c => `<label class="class-check"><input type="checkbox" ${attrs} data-cid="${c.id}" ${(classIds || []).includes(c.id) ? "checked" : ""}> ${escapeHtml(c.name || "(이름 없음)")}</label>`).join("") +
+    `</div></details>`;
 }
 
 function render() {
@@ -236,7 +254,8 @@ function render() {
   const d = S.draft;
   const live = liveClasses();
   const cur = (id) => (getClassesCache().find(c => c.id === id) || {}).name || "";
-  const students = rosterStudents().sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
+  const cmap = new Map(allCurrent().map(c => [c.id, c]));
+  const students = rosterStudents().sort((a, b) => (classRank(cmap.get(a.classId)) - classRank(cmap.get(b.classId))) || (a.name || "").localeCompare(b.name || "", "ko"));
   const shown = students.filter(s => (S.filter.cls === "all" || s.classId === S.filter.cls) && (!S.filter.onlyUn || !d.assign[s.id]));
   const lt = S.lastTransition;
 
@@ -269,20 +288,27 @@ function render() {
     <section class="nw-sec">
       <h3>② 학생 배정 <span class="dim-note">(대상 ${students.length}명)</span></h3>
       <p class="dim-note">현재 반 전체를 한 번에 옮기고, 예외만 아래 표에서 개별로 고치세요. 새친구는 기본이 "새친구 유지"이며, 교사가 나중에 반을 정해 옮길 수 있습니다.</p>
-      <div class="table-scroll"><table class="nw-table"><thead><tr><th>현재 반</th><th>인원</th><th>일괄 지정</th></tr></thead><tbody>
-        ${[...live, { id: "newcomer", name: "새친구" }].map(c => {
-          const n = students.filter(s => s.classId === c.id).length;
-          return n ? `<tr><td>${escapeHtml(c.name)}</td><td>${n}명</td><td><select data-mapfrom="${c.id}">${destOptions("", "일괄 지정…")}</select></td></tr>` : "";
+      <div class="table-scroll"><table class="nw-table"><thead><tr><th>현재 반</th><th>인원</th><th>일괄 지정 (고르면 반 전체에 적용)</th></tr></thead><tbody>
+        ${allCurrent().map(c => {
+          const kids = students.filter(s => s.classId === c.id);
+          if (!kids.length) return "";
+          const vals = kids.map(s => d.assign[s.id] || "");
+          const done = vals.filter(Boolean).length;
+          const uniq = [...new Set(vals)];
+          const same = uniq.length === 1 ? uniq[0] : "";
+          const mixed = uniq.length > 1 ? `개별 지정됨 (${uniq.filter(Boolean).length}곳${vals.includes("") ? " + 미배정" : ""})` : "";
+          return `<tr><td>${escapeHtml(c.name)}</td><td>${kids.length}명 <span class="dim-note">(배정 ${done}/${kids.length})</span></td><td><select data-mapfrom="${c.id}" class="${same ? "nw-picked" : ""}">${destOptions(same, "일괄 지정…", mixed)}</select></td></tr>`;
         }).join("")}
       </tbody></table></div>
 
       <div class="nw-filter">
-        <select id="nwFilterCls"><option value="all">현재 반: 전체</option>${[...live, { id: "newcomer", name: "새친구" }].map(c => `<option value="${c.id}" ${S.filter.cls === c.id ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("")}</select>
+        <select id="nwSort"><option value="grade" ${S.sort !== "name" ? "selected" : ""}>학년순 (중1→고3)</option><option value="name" ${S.sort === "name" ? "selected" : ""}>가나다순</option></select>
+        <select id="nwFilterCls"><option value="all">현재 반: 전체</option>${allCurrent().map(c => `<option value="${c.id}" ${S.filter.cls === c.id ? "selected" : ""}>${escapeHtml(c.name)}</option>`).join("")}</select>
         <label><input type="checkbox" id="nwOnlyUn" ${S.filter.onlyUn ? "checked" : ""}> 미배정만</label>
         <span class="nw-bulk"><select id="nwBulkDest">${destOptions("", "선택한 학생을…")}</select><button class="btn btn-secondary" id="nwBulkBtn">적용</button></span>
       </div>
       <div class="table-scroll"><table class="nw-table nw-stu"><thead><tr><th><input type="checkbox" id="nwAll"></th><th>이름</th><th>현재 반</th><th>${S.year} 학년(생일 기준)</th><th>${S.year} 배정</th></tr></thead><tbody>
-        ${shown.map(s => `<tr class="${d.assign[s.id] ? "" : "nw-un"}">
+        ${(S.sort === "name" ? [...shown].sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko")) : shown).map((s, i, arr) => `${S.sort !== "name" && (i === 0 || arr[i - 1].classId !== s.classId) ? `<tr class="nw-grp"><td colspan="5">${escapeHtml(cur(s.classId) || (s.classId === "newcomer" ? "새친구" : "반 없음"))} <span class="dim-note">(${arr.filter(x => x.classId === s.classId).length}명)</span></td></tr>` : ""}<tr class="${d.assign[s.id] ? "" : "nw-un"}">
           <td><input type="checkbox" data-pick="${s.id}" ${S.selected.has(s.id) ? "checked" : ""}></td>
           <td>${escapeHtml(s.name || "")}</td><td>${escapeHtml(cur(s.classId) || (s.classId === "newcomer" ? "새친구" : ""))}</td>
           <td class="dim-note">${gradeHint(s, S.year)}</td>
@@ -364,11 +390,12 @@ function bind() {
   q(".nw-cname").forEach(inp => inp.onchange = () => render());
 
   q("[data-mapfrom]").forEach(sel => sel.onchange = () => {
-    if (!sel.value) return;
+    if (!sel.value || sel.value === "__mixed") return;
     rosterStudents().filter(s => s.classId === sel.dataset.mapfrom).forEach(s => { d.assign[s.id] = sel.value; });
     full();
   });
   $("#nwFilterCls").onchange = (e) => { S.filter.cls = e.target.value; render(); };
+  $("#nwSort").onchange = (e) => { S.sort = e.target.value; render(); };
   $("#nwOnlyUn").onchange = (e) => { S.filter.onlyUn = e.target.checked; render(); };
   q("[data-stu]").forEach(sel => sel.onchange = () => { if (sel.value) d.assign[sel.dataset.stu] = sel.value; else delete d.assign[sel.dataset.stu]; sel.closest("tr").classList.toggle("nw-un", !sel.value); change(); });
   q("[data-pick]").forEach(c => c.onchange = () => { c.checked ? S.selected.add(c.dataset.pick) : S.selected.delete(c.dataset.pick); });
@@ -386,6 +413,7 @@ function bind() {
   q("[data-tcls]").forEach(c => c.onchange = () => {
     const t = d.teachers[c.dataset.tcls], id = c.dataset.cid;
     t.classIds = c.checked ? [...new Set([...(t.classIds || []), id])] : (t.classIds || []).filter(x => x !== id);
+    c.closest("details").querySelector("summary b").textContent = ddLabel(t.classIds);
     change();
   });
   $("#nwAddTeacher").onclick = () => { d.newTeachers.push({ id: "nt_" + rid(), name: "", gender: "", phone: "", classIds: [] }); full(); };
@@ -394,6 +422,7 @@ function bind() {
   q("[data-ntcls]").forEach(c => c.onchange = () => {
     const t = d.newTeachers[+c.dataset.ntcls], id = c.dataset.cid;
     t.classIds = c.checked ? [...new Set([...(t.classIds || []), id])] : (t.classIds || []).filter(x => x !== id);
+    c.closest("details").querySelector("summary b").textContent = ddLabel(t.classIds);
     change();
   });
 
