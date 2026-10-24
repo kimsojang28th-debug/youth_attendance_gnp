@@ -70,19 +70,23 @@ function renderTeachersView() {
         </div>`
       : `<p class="dim-note" style="margin-bottom:12px;">교사 정보 추가/수정/삭제는 관리자만 할 수 있습니다.</p>`}
     <div class="table-scroll">
-    <table>
-      <thead><tr><th>이름</th><th>성별</th><th>전화번호</th><th>담당반</th>${admin ? `<th>계정</th>` : ""}<th>비고</th></tr></thead>
+    <table class="students-table teachers-table">
+      <thead><tr><th class="st-name-col">이름</th><th>전화번호</th><th>담당반</th>${admin ? `<th>계정</th>` : ""}<th>비고</th></tr></thead>
       <tbody>
         ${teachers.length ? teachers.map(t => `
           <tr data-id="${t.id}">
-            <td><a href="#" class="student-name-link teacher-name-link" data-teacher-id="${t.id}">${escapeHtml(t.name)}</a></td>
-            <td>${t.gender === "F" ? "여" : "남"}</td>
+            <td class="st-name-col">
+              <span class="st-nm">
+                <a href="#" class="student-name-link teacher-name-link" data-teacher-id="${t.id}">${escapeHtml(t.name)}</a>
+                <span class="st-gender ${t.gender === "F" ? "st-gender-f" : "st-gender-m"}">${t.gender === "F" ? "여" : "남"}</span>
+              </span>
+            </td>
             <td>${t.phone ? escapeHtml(t.phone) : (admin ? `<span class="dim-note">연락처 없음(로그인 불가)</span>` : "-")}</td>
             <td>${classNamesOf(t).map(escapeHtml).join(", ") || "-"}</td>
             ${admin ? `<td class="acct-cell">${accountBadge(t)}${t.uid ? ` <button class="btn btn-sm resetPwBtn" data-id="${t.id}">초기화</button>` : ""}</td>` : ""}
             <td>${escapeHtml(t.note || "-")}</td>
           </tr>
-        `).join("") : `<tr><td colspan="${admin ? 6 : 5}"><p class="list empty">등록된 교사가 없습니다.</p></td></tr>`}
+        `).join("") : `<tr><td colspan="${admin ? 5 : 4}"><p class="list empty">등록된 교사가 없습니다.</p></td></tr>`}
       </tbody>
     </table>
     </div>
