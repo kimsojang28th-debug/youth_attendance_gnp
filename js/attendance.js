@@ -6,6 +6,7 @@ import {
   yearSelectOptionsHtml, sundayOptionsHtmlForYear, getSundaysOfYear
 } from "./utils.js";
 import { isAdmin, currentUser } from "./auth.js";
+import { rosterForYear } from "./terms.js";
 
 export function attendanceDocId(classId, date) {
   return `${classId}_${date}`;
@@ -27,11 +28,16 @@ let _currentNotes = {};
 let _currentStudentCount = 0;
 
 export async function initAttendanceView() {
-  const classes = await loadClasses();
+  await loadClasses();
   // 담당 교사가 못 나온 날 다른 교사가 대신 진행하는 경우가 많아서, 출석은 모든 교사가 모든 반에서 입력할 수 있음
-  const visible = classes;
+  // 반 목록은 선택한 연도(학년도)의 편성을 따른다 (지난 해 기록을 고칠 때는 그해의 반이 나옴)
   const select = $("#attendanceClassSelect");
-  select.innerHTML = visible.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+  const fillClassOptions = async (year) => {
+    const roster = await rosterForYear(year);
+    select.innerHTML = roster.classes.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+    return roster.classes;
+  };
+  const visible = await fillClassOptions(new Date().getFullYear());
   // 마지막으로 출석체크한 반을 기억해서 다음에 열 때 자동 선택 (담당 교사는 매주 같은 반을 고르기 때문)
   // 날짜는 기억하지 않음 - 기본값(가장 가까운 주일)이 이미 "이번 주"이고, 기억하면 지난 주가 열릴 위험이 있음
   try {
@@ -50,10 +56,11 @@ export async function initAttendanceView() {
   const dateSelect = $("#attendanceDate");
   dateSelect.innerHTML = sundayOptionsHtmlForYear(thisYear, nearestSundayISO());
 
-  yearSelect.onchange = () => {
+  yearSelect.onchange = async () => {
     const year = Number(yearSelect.value);
     const defaultDate = year === new Date().getFullYear() ? nearestSundayISO() : getSundaysOfYear(year)[0];
     dateSelect.innerHTML = sundayOptionsHtmlForYear(year, defaultDate);
+    await fillClassOptions(year);
   };
 
   $("#loadAttendanceBtn").onclick = renderAttendanceTable;
@@ -78,8 +85,9 @@ async function renderAttendanceTable() {
   // 학생이 섞이기 쉬운 새친구반에서 특히 두드러짐 — 나중에 합류한 친구가 합류 전 주차에도
   // "결석"으로 기록되고 그 주 주간보고서에까지 나타나버림). joinDate가 비어있는(예: 예전 데이터)
   // 학생은 안전하게 예전처럼 항상 포함함(필터링하지 않음).
+  const roster = await rosterForYear(Number(date.slice(0, 4)));
   const students = sortByName(
-    getStudentsCache().filter(s =>
+    roster.students.filter(s =>
       s.classId === classId && s.status !== "removed" && s.status !== "graduated" &&
       (!s.joinDate || s.joinDate <= date)
     )

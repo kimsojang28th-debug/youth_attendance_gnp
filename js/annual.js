@@ -1,5 +1,6 @@
 import { db, collection, getDocs, query, where } from "./firebase-init.js";
 import { loadClasses, getClassesCache } from "./classes.js";
+import { rosterForYear, getLiveYear, listArchivedYears } from "./terms.js";
 import { loadStudents, getStudentsCache, openStudentProfileModal, studentThumbHtml } from "./students.js";
 import {
   $, escapeHtml, getSundaysOfYear, fmtMonthDay, sortByName, friendlyFirestoreError,
@@ -23,23 +24,31 @@ let _focusClassId = null;     // 렌더 후 자동으로 스크롤해서 보여�
 const _collapsed = new Set(); // 접어둔 반 id (화면을 다시 그려도 유지)
 
 export async function initAnnualView() {
-  const classes = await loadClasses();
+  await loadClasses();
   await loadStudents();
 
+  // 연도 선택: 올해/작년/내년 + 현재 학년도 + 보관된 지난 학년도 (지난 해는 그해의 반 편성 그대로 보임)
   const yearSelect = $("#annualYearSelect");
   const thisYear = new Date().getFullYear();
-  yearSelect.innerHTML = [thisYear, thisYear - 1, thisYear + 1]
+  const years = new Set([thisYear, thisYear - 1, thisYear + 1, await getLiveYear(), ...(await listArchivedYears())]);
+  yearSelect.innerHTML = [...years].sort((a, b) => b - a)
     .map(y => `<option value="${y}" ${y === thisYear ? "selected" : ""}>${y}년</option>`).join("");
 
   const classSelect = $("#annualClassSelect");
-  classSelect.innerHTML = `<option value="all">전체 반</option>` +
-    classes.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
-  classSelect.value = "all";
+  // 선택한 연도의 반 목록으로 "반 선택" 칸을 채움
+  const fillClassOptions = async () => {
+    const roster = await rosterForYear(Number(yearSelect.value));
+    classSelect.innerHTML = `<option value="all">전체 반</option>` +
+      roster.classes.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+    classSelect.value = "all";
+    return roster.classes;
+  };
+  const classes = await fillClassOptions();
 
   _focusClassId = (_pendingClassId && classes.some(c => c.id === _pendingClassId)) ? _pendingClassId : null;
   _pendingClassId = null;
 
-  yearSelect.onchange = renderAnnualTable;
+  yearSelect.onchange = async () => { await fillClassOptions(); await renderAnnualTable(); };
   classSelect.onchange = renderAnnualTable;
   $("#annualHideEmpty").onchange = renderAnnualTable;
   $("#annualCsvBtn").onclick = exportCsv;
@@ -58,7 +67,9 @@ async function renderAnnualTable() {
   const wrap = $("#annualTableWrap");
   wrap.innerHTML = `<p style="padding:16px;color:#868e96;">불러오는 중...</p>`;
 
-  const classes = getClassesCache().filter(c => sel === "all" || c.id === sel);
+  // 그 연도의 반/학생 명부(지난 해는 보관된 편성, 올해는 현재 데이터)
+  const roster = await rosterForYear(year);
+  const classes = roster.classes.filter(c => sel === "all" || c.id === sel);
 
   // 반마다 따로 조회하지 않고, 그 해의 출석 기록을 날짜 범위로 한 번에 가져옴(날짜 하나에 대한 범위 조회라 별도 색인 불필요)
   let snap;
@@ -91,7 +102,7 @@ async function renderAnnualTable() {
   }
 
   // "제적"/"졸업" 학생은 청소년부 출석부에서 제외(졸업은 청년부로 넘어간 것)
-  const students = getStudentsCache().filter(s => s.status !== "removed" && s.status !== "graduated");
+  const students = roster.students.filter(s => s.status !== "removed" && s.status !== "graduated");
 
   const sections = classes.map(c => {
     const list = sortByName(students.filter(s => s.classId === c.id));

@@ -109,5 +109,20 @@ service cloud.firestore {
         && request.resource.data.get('uid', null) == resource.data.get('uid', null);
       allow delete: if isAdmin();
     }
+    // 학년도 전환: 보관된 지난 명부(조회는 회원, 쓰기는 관리자), 초안/되돌리기 정보/설정
+    match /terms/{year} {
+      allow read: if isMember();
+      allow write: if isAdmin();
+    }
+    match /termDrafts/{year} {
+      allow read, write: if isAdmin();
+    }
+    match /termUndo/{year} {
+      allow read, write: if isAdmin();
+    }
+    match /settings/{docId} {
+      allow read: if isMember();
+      allow write: if isAdmin();
+    }
   }
 }

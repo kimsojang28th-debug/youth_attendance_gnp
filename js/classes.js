@@ -10,7 +10,9 @@ export async function loadClasses(force = false) {
   if (_classesCache && !force) return _classesCache;
   const q = query(collection(db, "classes"), orderBy("order"));
   const snap = await getDocs(q);
-  _classesCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  // 지난 학년도로 보관된 반(archived)은 현재 반 목록(출석체크/재적부/대시보드 등)에서 제외한다.
+  // 지난 해 화면(연간출석부 등)은 terms.js 의 학년도 명부(rosterForYear)로 그린다.
+  _classesCache = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(c => !c.archived);
 
   // 2026-08-23(2차): 새친구반 관련 기능(재적부/대시보드/주간보고서)은 새친구반의 classId가 항상
   // "newcomer"라고 가정하고 만들어짐. 그런데 이 앱을 처음 도입한 시점이 새친구반 기능보다 훨씬 전이라,

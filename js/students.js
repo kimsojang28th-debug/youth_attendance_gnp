@@ -8,8 +8,10 @@ import {
 import { isAdmin, canEditClass } from "./auth.js";
 import { addHistoryRecord, deleteHistoryForStudent } from "./history.js";
 import { requestAnnualClass } from "./annual.js";
+import { rosterForYear, getLiveYear, listArchivedYears } from "./terms.js";
 
 let _studentsCache = [];
+let _viewYear = null; // null = 현재 학년도, 숫자 = 보관된 지난 학년도(읽기 전용)
 
 export async function loadStudents(force = false) {
   if (_studentsCache.length && !force) return _studentsCache;
@@ -39,18 +41,45 @@ export async function initStudentsView() {
   const editableClasses = classes.filter(c => canEditClass(c.id));
 
   const classFilter = $("#studentsClassFilter");
-  classFilter.innerHTML = `<option value="all">전체 반</option>` +
-    visibleClasses.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+  const fillClassFilter = async () => {
+    const list = _viewYear ? (await rosterForYear(_viewYear)).classes : visibleClasses;
+    classFilter.innerHTML = `<option value="all">전체 반</option>` +
+      list.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+    classFilter.value = "all";
+  };
+  const toolbarButtons = ["addStudentBtn", "bulkImportBtn", "studentsBulkGraduateBtn"];
+  const syncToolbarButtons = () => toolbarButtons.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle("hidden", !!_viewYear || editableClasses.length === 0);
+  });
+
+  // 학년도 선택: 지난 학년도가 보관되어 있을 때만 나타남 (지난 해는 그해의 반 편성 그대로, 읽기 전용)
+  _viewYear = null;
+  const yearSel = $("#studentsYearSelect");
+  const archived = await listArchivedYears();
+  if (archived.length) {
+    const liveYear = await getLiveYear();
+    yearSel.innerHTML = `<option value="">현재 (${liveYear}학년도)</option>` +
+      archived.map(y => `<option value="${y}">${y}학년도 (보관)</option>`).join("");
+    yearSel.value = "";
+    yearSel.classList.remove("hidden");
+    yearSel.onchange = async () => {
+      _viewYear = yearSel.value ? Number(yearSel.value) : null;
+      await fillClassFilter();
+      syncToolbarButtons();
+      await renderStudentsTable();
+    };
+  } else {
+    yearSel.classList.add("hidden");
+  }
+  await fillClassFilter();
 
   $("#studentsClassFilter").onchange = renderStudentsTable;
   $("#studentsStatusFilter").onchange = renderStudentsTable;
   $("#addStudentBtn").onclick = () => openStudentModal();
   $("#bulkImportBtn").onclick = () => openBulkImportModal(editableClasses);
-  // 담당반이 없는 교사는 학생을 추가/일괄등록/졸업처리 할 수 없으므로 버튼을 숨김
-  ["addStudentBtn", "bulkImportBtn", "studentsBulkGraduateBtn"].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.classList.toggle("hidden", editableClasses.length === 0);
-  });
+  // 담당반이 없는 교사는 학생을 추가/일괄등록/졸업처리 할 수 없으므로 버튼을 숨김 (지난 학년도 조회 중에도 숨김)
+  syncToolbarButtons();
   $("#studentsBulkGraduateBtn").onclick = handleBulkGraduate;
 
   await loadStudents(true);
@@ -98,10 +127,14 @@ async function handleBulkGraduate() {
 async function renderStudentsTable() {
   const classId = $("#studentsClassFilter").value;
   const status = $("#studentsStatusFilter").value;
-  const classes = getClassesCache();
+  // 지난 학년도를 보는 중이면 그해 보관 명부(읽기 전용), 아니면 현재 데이터
+  const roster = _viewYear ? await rosterForYear(_viewYear) : null;
+  const classes = roster ? roster.classes : getClassesCache();
+  const source = roster ? roster.students : _studentsCache;
+  const canEdit = (s) => !_viewYear && canEditClass(s.classId);
   const classMap = Object.fromEntries(classes.map(c => [c.id, c.name]));
 
-  let list = _studentsCache.filter(s => {
+  let list = source.filter(s => {
     if (classId !== "all" && s.classId !== classId) return false;
     if (status !== "all" && s.status !== status) return false;
     return true;
@@ -134,18 +167,18 @@ async function renderStudentsTable() {
           <tr data-id="${s.id}">
             <td class="st-name-col">
               <span class="st-nm">
-                ${canEditClass(s.classId) ? `<input type="checkbox" class="studentRowCheck" />` : `<span class="st-chk-slot"></span>`}
+                ${canEdit(s) ? `<input type="checkbox" class="studentRowCheck" />` : `<span class="st-chk-slot"></span>`}
                 ${studentThumbHtml(s)}
                 <a href="#" class="student-name-link">${escapeHtml(s.name)}</a>
                 <span class="st-gender ${s.gender === "F" ? "st-gender-f" : "st-gender-m"}">${s.gender === "F" ? "여" : "남"}</span>
               </span>
               ${planned ? `<span class="st-planned">→ ${escapeHtml(planned)} 예정</span>` : ""}
             </td>
-            <td>${escapeHtml(classMap[s.classId] || s.classId)}</td>
+            <td>${escapeHtml(classMap[s.classId] || s.lastClassName || (s.classId ? "" : ""))}</td>
             <td><span class="badge badge-${s.status}">${STUDENT_STATUS_LABEL[s.status] || s.status}</span></td>
             <td>${escapeHtml(s.phone || "")}</td>
             <td>${escapeHtml(s.school || "")}</td>
-            <td>${canEditClass(s.classId) ? `<button class="btn btn-sm editStudentBtn">수정</button>` : ""}</td>
+            <td>${canEdit(s) ? `<button class="btn btn-sm editStudentBtn">수정</button>` : ""}</td>
           </tr>`;
         }).join("")}
       </tbody>
@@ -175,7 +208,7 @@ async function renderStudentsTable() {
     link.onclick = (e) => {
       e.preventDefault();
       const id = e.target.closest("tr").dataset.id;
-      const student = _studentsCache.find(s => s.id === id);
+      const student = source.find(s => s.id === id);
       openStudentProfileModal(student);
     };
   });

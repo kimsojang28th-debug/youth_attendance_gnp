@@ -14,6 +14,7 @@ import { initBirthdaysView } from "./birthdays.js";
 import { initYearlyPlanView } from "./yearlyplan.js";
 import { initTeachersView } from "./teachers.js";
 import { initScheduleCalendar } from "./calendar.js";
+import { initNewYearView } from "./newyear.js";
 
 const viewInitializers = {
   dashboard: initDashboardView,
@@ -29,6 +30,7 @@ const viewInitializers = {
   birthdays: initBirthdaysView,
   yearlyplan: initYearlyPlanView,
   schedule: initScheduleCalendar,
+  newyear: initNewYearView,
   teachers: initTeachersView
 };
 
@@ -49,7 +51,7 @@ const MENU = [
     ["report", "주간보고서", "📝"], ["annual", "연간출석부", "📅"], ["birthdays", "월별 생일자", "🎂"],
     ["stats", "통계", "📊"], ["history", "재적변동이력", "🔄"]
   ] },
-  { id: "people", icon: "👥", label: "인원", views: [["students", "재적부", "📋"], ["teachers", "교사현황", "🧑‍🏫"], ["classes", "반 관리", "🗂️", "adminOnly"]] },
+  { id: "people", icon: "👥", label: "인원", views: [["students", "재적부", "📋"], ["teachers", "교사현황", "🧑‍🏫"], ["classes", "반 관리", "🗂️", "adminOnly"], ["newyear", "새 학년도 편성", "📅", "adminOnly"]] },
   { id: "plan", icon: "🗓️", label: "일정", views: [["schedule", "월간 일정", "📆"], ["yearlyplan", "연간계획", "🗓️"]] }
 ];
 
@@ -210,6 +212,7 @@ export async function goToAttendance(classId, date) {
   if (yearSelect.value !== year && yearSelect.querySelector(`option[value="${year}"]`)) {
     yearSelect.value = year;
     yearSelect.dispatchEvent(new Event("change"));
+    await new Promise(r => setTimeout(r, 50)); // 연도가 바뀌면 그 연도의 반 목록이 다시 채워질 때까지 잠깐 대기
   }
   const dateSelect = $("#attendanceDate");
   if (dateSelect.querySelector(`option[value="${date}"]`)) {

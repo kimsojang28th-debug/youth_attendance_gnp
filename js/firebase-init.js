@@ -5,7 +5,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc,
-  updateDoc, deleteDoc, query, where, orderBy, limit, onSnapshot, serverTimestamp
+  updateDoc, deleteDoc, query, where, orderBy, limit, onSnapshot, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 import { firebaseConfig } from "./firebase-config.js";
@@ -17,5 +17,5 @@ export const db = getFirestore(app);
 export {
   signInWithEmailAndPassword, signOut, onAuthStateChanged,
   collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
-  query, where, orderBy, limit, onSnapshot, serverTimestamp
+  query, where, orderBy, limit, onSnapshot, serverTimestamp, writeBatch
 };

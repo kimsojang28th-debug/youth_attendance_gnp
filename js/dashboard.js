@@ -8,17 +8,20 @@ import { goToAttendance } from "./app.js";
 import { db, doc, getDoc } from "./firebase-init.js";
 import { loadTeachers } from "./teachers.js";
 import { initDashboardCalendar } from "./calendar.js";
+import { rosterForYear, getTransitionNotice } from "./terms.js";
 
 export async function initDashboardView() {
   const classes = await loadClasses();
   await loadStudents(true); // 항상 최신 데이터로 새로고침 (다른 화면/탭에서 방금 삭제한 내용이 바로 반영되도록)
   // 캘린더는 나머지 대시보드 내용과 따로(동시에) 불러와서, 어느 한쪽이 느리거나 실패해도 다른 쪽에 영향을 주지 않게 함
   const calendarReady = initDashboardCalendar().catch(err => console.error("캘린더 로딩 실패", err));
-  const visible = classes; // 대리 진행이 많아 모든 교사가 전체 반을 봄
-  const visibleIds = visible.map(c => c.id);
-  const students = getStudentsCache().filter(s => visibleIds.includes(s.classId));
-
   const date = nearestSundayISO();
+  // 새해 전환 직후(1/1~첫 주일 전)에는 "가장 가까운 지난 주일"이 지난 학년도에 속하므로, 그 날짜의 학년도 명부를 기준으로 함
+  const roster = await rosterForYear(Number(date.slice(0, 4)));
+  const visible = roster.classes; // 대리 진행이 많아 모든 교사가 전체 반을 봄
+  const visibleIds = visible.map(c => c.id);
+  const students = roster.students.filter(s => visibleIds.includes(s.classId));
+
   const { details } = await buildAttendanceDetail(date);
   const visibleRows = details.filter(d => visibleIds.includes(d.classId));
   // 2026-08-23: 새친구는 더 이상 학년반 소속 + 상태값으로만 구분하지 않고, 별도의 새친구반(newcomer)에서
@@ -144,12 +147,25 @@ async function renderTodo(date, visibleRows) {
     try { resetCount = (await loadTeachers(true)).filter(t => t.uid && t.resetRequested).length; }
     catch (err) { console.warn("재설정 요청 확인 실패", err); }
   }
+  // 관리자에게만: 연말(12/20~)이거나 새해가 됐는데 아직 새 학년도로 전환하지 않았으면 안내
+  let termAlert = "";
+  if (isAdmin()) {
+    try {
+      const n = await getTransitionNotice();
+      if (n) {
+        termAlert = `<a href="#newyear" class="todo-alert">📅 ${n.hasDraft
+          ? `<b>${n.nextYear} 학년도 편성이 준비되어 있습니다.</b> ${n.started ? "지금 전환할 수 있습니다." : "12월 마지막 주일 출석을 입력한 뒤 전환하세요."}`
+          : `<b>${n.nextYear} 학년도 편성이 아직 준비되지 않았습니다.</b>`}
+          <span>새 학년도 편성 열기 ›</span></a>`;
+      }
+    } catch (err) { console.warn("학년도 전환 안내 확인 실패", err); }
+  }
   const resetAlert = resetCount
     ? `<a href="#teachers" class="todo-alert">🔑 비밀번호 재설정 요청이 <b>${resetCount}건</b> 있습니다. <span>교사현황에서 초기화하기 ›</span></a>`
     : "";
 
   $("#dashboardTodo").innerHTML = `
-    ${resetAlert}
+    ${termAlert}${resetAlert}
     <div class="todo-head"><h3>이번 주 할 일</h3><span class="dim-note">${date} 주일 기준</span></div>
     <div class="todo-grid">
       <a href="#attendance" class="todo-card">

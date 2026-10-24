@@ -86,7 +86,7 @@ function buildBirthdayIndex() {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(s.birthday || "")) return;
     (solar.student[s.birthday.slice(5)] ||= []).push({ name: s.name, sub: className[s.classId] || "" });
   });
-  getTeachersCache().forEach(t => {
+  getTeachersCache().filter(t => !t.retired).forEach(t => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(t.birthday || "")) return;
     const md = t.birthday.slice(5);
     if (t.lunar) lunar.push({ name: t.name, m: Number(md.slice(0, 2)), d: Number(md.slice(3, 5)) });

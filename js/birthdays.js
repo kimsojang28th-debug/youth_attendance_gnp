@@ -28,7 +28,7 @@ function teachersWithBirthdayIn(month) {
   const year = new Date().getFullYear();
   const daysInMonth = new Date(year, month, 0).getDate();
   const result = [];
-  getTeachersCache().forEach(t => {
+  getTeachersCache().filter(t => !t.retired).forEach(t => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(t.birthday || "")) return;
     const bm = Number(t.birthday.slice(5, 7)), bd = Number(t.birthday.slice(8, 10));
     if (!t.lunar) {

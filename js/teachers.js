@@ -5,12 +5,17 @@ import { $, escapeHtml, openModal, closeModal, parseDelimitedLine } from "./util
 import { isAdmin, isSystemAdmin } from "./auth.js";
 import { loadClasses, getClassesCache } from "./classes.js";
 import { callFn } from "./functions-client.js";
+import { rosterForYear, getLiveYear, listArchivedYears } from "./terms.js";
 
 // "교사현황" 화면: 청소년부 교사(부장/총무/회계/서기/각 반 담당 교사 등) 연락처 명단.
 // 재적부(students.js)와 비슷한 구조지만 반 소속이 필수가 아니고(직분/담당은 자유 텍스트인 "비고"에 적음),
 // 사진도 없는 더 단순한 CRUD 화면. 목록은 별도 컬렉션(teachers)에 저장.
 
 let _teachersCache = [];
+let _viewYear = null;      // null = 현재, 숫자 = 보관된 지난 학년도(읽기 전용)
+let _showRetired = false;  // 퇴임 교사 표시 여부
+let _archivedYears = [];
+let _liveYear = null;
 
 export async function loadTeachers(force = false) {
   if (_teachersCache.length && !force) return _teachersCache;
@@ -25,8 +30,12 @@ export function getTeachersCache() {
 }
 
 export async function initTeachersView() {
+  _viewYear = null;
+  _showRetired = false;
   await Promise.all([loadTeachers(true), loadClasses()]);
-  renderTeachersView();
+  _archivedYears = await listArchivedYears();
+  _liveYear = await getLiveYear();
+  await renderTeachersView();
 }
 
 // ----- 계정(로그인) 관련 표시/동작 -----
@@ -37,6 +46,7 @@ function classNamesOf(t) {
 
 function accountBadge(t) {
   const role = t.isAdmin ? ` <span class="badge badge-admin">관리자</span>` : "";
+  if (t.retired) return `<span class="badge badge-removed">퇴임${t.retiredYear ? ` (${t.retiredYear})` : ""}</span>${role}`;
   if (t.loginEnabled === false) return `<span class="badge badge-removed">로그인 제한</span>${role}`;
   if (t.uid && t.resetRequested) return `<span class="badge badge-hold">재설정 요청</span>${role}`;
   if (t.uid) return `<span class="badge badge-active">가입</span>${role}`;
@@ -56,13 +66,30 @@ async function resetPasswordOf(t) {
   return true;
 }
 
-function renderTeachersView() {
-  const admin = isAdmin();
-  const teachers = getTeachersCache();
+async function renderTeachersView() {
+  const past = !!_viewYear;
+  // 지난 학년도: 그해 보관 명부(읽기 전용). 현재: 퇴임하지 않은 교사 (옵션으로 퇴임 교사도 표시)
+  const admin = isAdmin() && !past;
+  let teachers;
+  if (past) {
+    const roster = await rosterForYear(_viewYear);
+    const names = Object.fromEntries(roster.classes.map(c => [c.id, c.name]));
+    teachers = roster.teachers.map(t => ({ ...t, _classNames: (t.classIds || []).map(id => names[id]).filter(Boolean) }));
+  } else {
+    teachers = getTeachersCache().filter(t => _showRetired || !t.retired);
+  }
   const wrap = $("#view-teachers");
 
   wrap.innerHTML = `
     <h2>교사현황</h2>
+    <div class="toolbar" style="margin-bottom:10px;">
+      ${_archivedYears.length ? `<select id="teachersYearSelect" title="학년도">
+        <option value="">현재 (${_liveYear}학년도)</option>
+        ${_archivedYears.map(y => `<option value="${y}" ${y === _viewYear ? "selected" : ""}>${y}학년도 (보관)</option>`).join("")}
+      </select>` : ""}
+      ${past ? `<span class="dim-note">${_viewYear}학년도에 활동한 교사 명단입니다. (읽기 전용)</span>`
+        : `<label class="class-check"><input type="checkbox" id="showRetiredChk" ${_showRetired ? "checked" : ""} /> 퇴임 교사도 보기</label>`}
+    </div>
     ${admin
       ? `<div class="toolbar">
           <button id="addTeacherBtn" class="btn btn-primary">+ 교사 추가</button>
@@ -82,7 +109,7 @@ function renderTeachersView() {
               </span>
             </td>
             <td>${t.phone ? escapeHtml(t.phone) : (admin ? `<span class="dim-note">연락처 없음(로그인 불가)</span>` : "-")}</td>
-            <td>${classNamesOf(t).map(escapeHtml).join(", ") || "-"}</td>
+            <td>${(t._classNames || classNamesOf(t)).map(escapeHtml).join(", ") || "-"}</td>
             ${admin ? `<td class="acct-cell">${accountBadge(t)}${t.uid ? ` <button class="btn btn-sm resetPwBtn" data-id="${t.id}">초기화</button>` : ""}</td>` : ""}
             <td>${escapeHtml(t.note || "-")}</td>
           </tr>
@@ -91,6 +118,11 @@ function renderTeachersView() {
     </table>
     </div>
   `;
+
+  const ysel = $("#teachersYearSelect");
+  if (ysel) ysel.onchange = async () => { _viewYear = ysel.value ? Number(ysel.value) : null; await renderTeachersView(); };
+  const retChk = $("#showRetiredChk");
+  if (retChk) retChk.onchange = async () => { _showRetired = retChk.checked; await renderTeachersView(); };
 
   // 이름을 누르면 생일/전화번호/주소/이메일까지 보이는 프로필 팝업이 뜸(재적부와 동일한 패턴)
   wrap.querySelectorAll(".teacher-name-link").forEach(link => {

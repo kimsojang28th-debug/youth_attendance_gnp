@@ -835,3 +835,29 @@ td.annual-this-week { background: rgba(35, 64, 95, 0.07); }
 .students-table .btn-sm { padding: 2px 9px; font-size: 12px; }
 .students-table tbody tr:hover td { background: #fbf7ec; }
 .students-table tbody tr:hover td.st-name-col { background: #fbf7ec; }
+
+/* ---------- 새 학년도 편성 ---------- */
+.nw-intro p{margin:.3rem 0 .6rem;line-height:1.5}
+.nw-sec{margin:1.2rem 0;padding:.8rem;border:1px solid var(--border,#dde);border-radius:10px;background:var(--card,#fff)}
+.nw-sec h3{margin:.1rem 0 .5rem}
+.nw-actions{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin:.5rem 0}
+.nw-table{width:100%;border-collapse:collapse;font-size:.92rem}
+.nw-table th,.nw-table td{padding:.3rem .45rem;border-bottom:1px solid var(--border,#e6e8ee);text-align:left;vertical-align:middle}
+.nw-table input[type=text],.nw-table input[type=tel],.nw-newt input,.nw-table select,.nw-newt select{padding:.3rem .4rem;font-size:.92rem;max-width:100%}
+.nw-ord{white-space:nowrap}
+.btn-mini{padding:.15rem .5rem;font-size:.8rem;border:1px solid #ccd;border-radius:6px;background:#fff;cursor:pointer}
+.btn-mini:disabled{opacity:.35}
+.nw-filter{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin:.7rem 0 .3rem}
+.nw-bulk{margin-left:auto;display:flex;gap:.3rem}
+.nw-un{background:#fff6e5}
+.nw-off{opacity:.6}
+.nw-newt{display:flex;gap:.4rem;align-items:center;flex-wrap:wrap;margin:.4rem 0;padding:.4rem;background:#f6f8fc;border-radius:8px}
+.nw-sum-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:.4rem;margin:.4rem 0 .8rem}
+.nw-sum-grid>div{background:#f3f5fa;border-radius:8px;padding:.5rem;text-align:center}
+.nw-sum-grid b{display:block;font-size:1.3rem}
+.nw-sum-grid span{font-size:.8rem;color:#667}
+.nw-sum-grid .bad{background:#ffe8e8}
+.nw-list{padding-left:1.1rem;margin:.4rem 0}
+.nw-list.bad{color:#c92a2a}.nw-list.warn{color:#9a6700}
+.nw-ok{color:#2b8a3e;font-weight:600}
+@media(max-width:640px){.nw-bulk{margin-left:0}}
