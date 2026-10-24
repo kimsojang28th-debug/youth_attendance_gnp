@@ -6,10 +6,13 @@ import { $, escapeHtml, nearestSundayISO, friendlyFirestoreError } from "./utils
 import { isAdmin, currentUser } from "./auth.js";
 import { goToAttendance } from "./app.js";
 import { db, doc, getDoc } from "./firebase-init.js";
+import { initDashboardCalendar } from "./calendar.js";
 
 export async function initDashboardView() {
   const classes = await loadClasses();
   await loadStudents(true); // 항상 최신 데이터로 새로고침 (다른 화면/탭에서 방금 삭제한 내용이 바로 반영되도록)
+  // 캘린더는 나머지 대시보드 내용과 따로(동시에) 불러와서, 어느 한쪽이 느리거나 실패해도 다른 쪽에 영향을 주지 않게 함
+  const calendarReady = initDashboardCalendar().catch(err => console.error("캘린더 로딩 실패", err));
   const visible = isAdmin() ? classes : classes.filter(c => currentUser.classIds.includes(c.id));
   const visibleIds = visible.map(c => c.id);
   const students = getStudentsCache().filter(s => visibleIds.includes(s.classId));
@@ -105,6 +108,8 @@ export async function initDashboardView() {
       goToAttendance(e.currentTarget.dataset.classId, date);
     };
   });
+
+  await calendarReady;
 }
 
 // "이번 주 할 일" - 매주 반복되는 순서(출석체크 → 예배정보 입력 → 주간보고서)를 큰 버튼으로 보여주고,

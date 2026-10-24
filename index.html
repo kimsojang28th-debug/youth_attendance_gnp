@@ -84,6 +84,7 @@
     <section id="view-dashboard" class="view">
       <h2>대시보드</h2>
       <div id="dashboardTodo"></div>
+      <div id="dashboardCalendar"></div>
       <div class="card-grid" id="dashboardCards"></div>
       <div class="panel">
         <h3>이번 주 반별 출석 현황</h3>
@@ -197,7 +198,10 @@
         <select id="annualYearSelect"></select>
         <label>반</label>
         <select id="annualClassSelect"></select>
+        <label class="check-label"><input type="checkbox" id="annualHideEmpty" /> 기록 없는 주일 숨기기</label>
+        <button id="annualCsvBtn" class="btn">⬇ 엑셀(CSV) 저장</button>
       </div>
+      <p class="dim-note annual-legend">O 출석 · X 결석 · - 해당없음(기록 없음/등록 전) · <span style="color:#5f3dc4;text-decoration:underline dotted;">보라색</span> 특이사항(누르면 내용 확인) · 반 이름 줄을 누르면 접기/펼치기</p>
       <div id="annualTableWrap" class="table-scroll"></div>
     </section>
 

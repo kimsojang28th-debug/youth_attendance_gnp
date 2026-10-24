@@ -165,6 +165,12 @@ function setupNav() {
       btn.setAttribute("aria-expanded", String(willOpen));
       return;
     }
+    const item = e.target.closest(".nav-item");
+    if (item) {
+      const g = item.closest(".nav-group");
+      g.classList.add("closing");
+      g.addEventListener("mouseleave", () => g.classList.remove("closing"), { once: true });
+    }
     refreshIfSame(e);
   });
   $("#brandLink").addEventListener("click", refreshIfSame); // 타이틀 클릭 → 메인(대시보드)
