@@ -145,6 +145,8 @@ function renderPlanCards(year, byDate) {
 function renderPlanTable(year, byDate) {
   const wrap = $("#yearlyPlanTableWrap");
   const sundays = getSundaysOfYear(year);
+  const thisSunday = nearestSundayISO();
+  const nowYear = new Date().getFullYear();
 
   // 같은 달의 주일끼리 묶어서 "월" 칸을 rowspan으로 합쳐 첨부 엑셀 서식과 비슷하게 보여줌
   const monthGroups = [];
@@ -160,36 +162,38 @@ function renderPlanTable(year, byDate) {
 
   const rowsHtml = monthGroups.map(group => group.dates.map((date, idx) => {
     const entry = byDate[date];
-    const hasContent = !!entry && (PLAN_FIELDS.some(f => entry[f.key]) || entry.note);
+    const hasContent = hasPlanContent(entry);
+    const isNow = year === nowYear && date === thisSunday;
+    const isPast = year < nowYear || (year === nowYear && date < thisSunday);
     const cells = PLAN_FIELDS.map(f =>
-      `<td>${entry && entry[f.key] ? escapeHtml(entry[f.key]) : `<span class="dim-note">-</span>`}</td>`
+      `<td class="${f.key === "youthEvent" ? "plan-cell-youth" : ""}">${entry && entry[f.key] ? escapeHtml(entry[f.key]) : `<span class="dim-note">-</span>`}</td>`
     ).join("");
     return `
-      <tr data-date="${date}" class="plan-row${hasContent ? " plan-row-filled" : ""}">
+      <tr data-date="${date}" class="plan-row${hasContent ? " plan-row-filled" : ""}${isNow ? " now" : ""}${isPast ? " past" : ""}">
         ${idx === 0 ? `<td rowspan="${group.dates.length}" class="plan-month-cell">${group.month}월</td>` : ""}
-        <td class="plan-date-cell">${fmtMonthDay(date)}</td>
+        <td class="plan-date-cell">${fmtMonthDay(date)}${isNow ? `<small class="plan-now-mark">이번 주</small>` : ""}</td>
         ${cells}
         <td>${entry && entry.note ? escapeHtml(entry.note) : `<span class="dim-note">-</span>`}</td>
-        <td><button class="btn btn-sm planEditBtn" data-date="${date}">${hasContent ? "수정" : "등록"}</button></td>
       </tr>
     `;
   }).join("")).join("");
 
+  // 월/주일 칸은 폭을 최소로 줄여 왼쪽에 고정하고, 줄(행)을 누르면 바로 입력/수정 팝업이 열림
   wrap.innerHTML = `
     <table class="plan-table">
       <thead>
         <tr>
-          <th>월</th><th>주일</th>
+          <th class="plan-col-month">월</th><th class="plan-col-date">주일</th>
           ${PLAN_FIELDS.map(f => `<th>${f.label}</th>`).join("")}
-          <th>비고</th><th></th>
+          <th>비고</th>
         </tr>
       </thead>
       <tbody>${rowsHtml}</tbody>
     </table>
   `;
 
-  wrap.querySelectorAll(".planEditBtn").forEach(btn => {
-    btn.onclick = () => openPlanModal(btn.dataset.date, byDate[btn.dataset.date] || null);
+  wrap.querySelectorAll(".plan-row").forEach(row => {
+    row.onclick = () => openPlanModal(row.dataset.date, byDate[row.dataset.date] || null);
   });
 }
 

@@ -751,3 +751,33 @@ td.annual-this-week { background: rgba(35, 64, 95, 0.07); }
   .annual-rate { min-width: 44px; }
 }
 .bd-ic { margin-right: 2px; }
+
+/* ---------- 연간계획: 전체 표 (월/주일 칸 최소 폭 + 왼쪽 고정, 행 클릭으로 수정) ---------- */
+.plan-table { border-collapse: separate; border-spacing: 0; }
+.plan-table th, .plan-table td { border-bottom: 1px solid var(--border); }
+.plan-table tbody tr { cursor: pointer; }
+.plan-table .plan-col-month, .plan-table .plan-month-cell {
+  width: 44px; min-width: 44px; max-width: 44px; padding-left: 4px; padding-right: 4px; text-align: center;
+  position: sticky; left: 0; z-index: 2;
+}
+.plan-table .plan-col-date, .plan-table .plan-date-cell {
+  width: 58px; min-width: 58px; max-width: 58px; padding-left: 6px; padding-right: 6px;
+  position: sticky; left: 44px; z-index: 2; background: var(--card-bg); border-right: 1px solid var(--border);
+}
+.plan-table thead th { z-index: 4; }
+.plan-table thead .plan-col-month, .plan-table thead .plan-col-date { z-index: 6; background: #faf6ec; }
+.plan-table .plan-date-cell { display: table-cell; }
+.plan-now-mark { display: block; font-size: 10px; font-weight: 700; color: var(--primary); }
+.plan-cell-youth { font-weight: 700; color: var(--primary); }
+.plan-row-filled .plan-date-cell { background: #fffbea; }
+.plan-row-filled:hover .plan-date-cell { background: #fff5d6; }
+.plan-table tr:hover .plan-date-cell { background: #f8f3e7; }
+.plan-row.past td:not(.plan-month-cell) { color: var(--text-muted); }
+.plan-row.past .plan-cell-youth { color: #5f7186; }
+.plan-row.now td { background: #eef2f7; }
+.plan-row.now .plan-date-cell { background: #eef2f7; }
+.plan-row.now:hover td, .plan-row.now:hover .plan-date-cell { background: #e3ebf3; }
+@media (max-width: 800px) {
+  .plan-table td { min-width: 110px; }
+  .plan-table .plan-month-cell, .plan-table .plan-date-cell { min-width: 0; }
+}
