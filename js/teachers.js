@@ -2,7 +2,7 @@ import {
   db, collection, getDocs, addDoc, updateDoc, deleteDoc, query, orderBy, doc, serverTimestamp
 } from "./firebase-init.js";
 import { $, escapeHtml, openModal, closeModal, parseDelimitedLine } from "./utils.js";
-import { isAdmin, isSystemAdmin } from "./auth.js";
+import { isAdmin, isSystemAdmin, currentUser } from "./auth.js";
 import { loadClasses, getClassesCache } from "./classes.js";
 import { callFn } from "./functions-client.js";
 import { rosterForYear, getLiveYear, listArchivedYears } from "./terms.js";
@@ -42,6 +42,15 @@ export async function initTeachersView() {
 function classNamesOf(t) {
   const map = Object.fromEntries(getClassesCache().map(c => [c.id, c.name]));
   return (t.classIds || []).map(id => map[id]).filter(Boolean);
+}
+
+// 목록에서 바로 담당반을 체크하는 펼침 선택창 (체크하면 즉시 저장)
+function inlineClassPicker(t) {
+  const classes = getClassesCache();
+  const label = classNamesOf(t).join(", ") || "선택 안 함";
+  return `<details class="nw-dd inline-dd" data-id="${t.id}"><summary>${escapeHtml(label)}</summary><div class="nw-dd-list">` +
+    classes.map(c => `<label class="class-check"><input type="checkbox" class="inlineClass" data-id="${t.id}" value="${c.id}" ${(t.classIds || []).includes(c.id) ? "checked" : ""}> ${escapeHtml(c.name)}</label>`).join("") +
+    `</div></details>`;
 }
 
 function accountBadge(t) {
@@ -109,8 +118,8 @@ async function renderTeachersView() {
               </span>
             </td>
             <td>${t.phone ? escapeHtml(t.phone) : (admin ? `<span class="dim-note">연락처 없음(로그인 불가)</span>` : "-")}</td>
-            <td>${(t._classNames || classNamesOf(t)).map(escapeHtml).join(", ") || "-"}</td>
-            ${admin ? `<td class="acct-cell">${accountBadge(t)}${t.uid ? ` <button class="btn btn-sm resetPwBtn" data-id="${t.id}">초기화</button>` : ""}</td>` : ""}
+            <td>${admin && !past && !t.retired ? inlineClassPicker(t) : ((t._classNames || classNamesOf(t)).map(escapeHtml).join(", ") || "-")}</td>
+            ${admin ? `<td class="acct-cell">${accountBadge(t)}${t.uid ? ` <button class="btn btn-sm resetPwBtn" data-id="${t.id}">초기화</button>` : ""}${!past && !t.retired ? `<label class="login-sw"><input type="checkbox" class="loginSwitch" data-id="${t.id}" ${t.loginEnabled === false ? "" : "checked"}> 로그인 허용</label>` : ""}</td>` : ""}
             <td>${escapeHtml(t.note || "-")}</td>
           </tr>
         `).join("") : `<tr><td colspan="${admin ? 5 : 4}"><p class="list empty">등록된 교사가 없습니다.</p></td></tr>`}
@@ -139,6 +148,48 @@ async function renderTeachersView() {
     btn.onclick = async () => {
       const t = getTeachersCache().find(x => x.id === btn.dataset.id);
       if (t && await resetPasswordOf(t)) renderTeachersView();
+    };
+  });
+  // 담당반 체크: 바뀔 때마다 즉시 저장
+  wrap.querySelectorAll(".inlineClass").forEach(cb => {
+    cb.onchange = async () => {
+      const id = cb.dataset.id;
+      const t = getTeachersCache().find(x => x.id === id);
+      const box = cb.closest("details");
+      const ids = [...box.querySelectorAll(".inlineClass:checked")].map(el => el.value);
+      try {
+        await updateDoc(doc(db, "teachers", id), { classIds: ids });
+        if (t) t.classIds = ids;
+        box.querySelector("summary").textContent = classNamesOf({ classIds: ids }).join(", ") || "선택 안 함";
+        box.classList.add("saved-flash");
+        setTimeout(() => box.classList.remove("saved-flash"), 900);
+      } catch (err) {
+        alert(`담당반을 저장하지 못했습니다: ${err.message || err}`);
+        await loadTeachers(true);
+        renderTeachersView();
+      }
+    };
+  });
+  // 로그인 허용 스위치 (끌 때는 확인창)
+  wrap.querySelectorAll(".loginSwitch").forEach(sw => {
+    sw.onchange = async () => {
+      const t = getTeachersCache().find(x => x.id === sw.dataset.id);
+      if (!t) return;
+      const revert = () => { sw.checked = !sw.checked; };
+      const enable = sw.checked;
+      if (!enable) {
+        if (currentUser && currentUser.teacherId === t.id) { alert("본인 계정의 로그인은 끌 수 없습니다."); revert(); return; }
+        if (t.isAdmin && !isSystemAdmin()) { alert("관리자 계정은 시스템 관리자만 바꿀 수 있습니다."); revert(); return; }
+        if (!confirm(`"${t.name}" 교사의 로그인을 막을까요?\n막으면 이 교사는 앱에 접속할 수 없습니다. (언제든 다시 허용할 수 있습니다)`)) { revert(); return; }
+      }
+      try {
+        await updateDoc(doc(db, "teachers", t.id), { loginEnabled: enable });
+        t.loginEnabled = enable;
+        renderTeachersView();
+      } catch (err) {
+        alert(`저장하지 못했습니다: ${err.message || err}`);
+        revert();
+      }
     };
   });
   $("#addTeacherBtn").onclick = () => openTeacherModal();

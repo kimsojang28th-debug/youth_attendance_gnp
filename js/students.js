@@ -439,6 +439,7 @@ function openStudentModal(student = null) {
     <input id="f_name" value="${escapeHtml(student?.name || "")}" />
     <label>상태</label>
     <select id="f_status">
+      <option value="" ${!student?.status ? "selected" : ""}>— 선택 —</option>
       <option value="active" ${student?.status === "active" ? "selected" : ""}>재적</option>
       <option value="new" ${student?.status === "new" ? "selected" : ""}>새친구</option>
       <option value="hold" ${student?.status === "hold" ? "selected" : ""}>보류</option>
@@ -456,6 +457,7 @@ function openStudentModal(student = null) {
     </div>
     <label>성별</label>
     <select id="f_gender">
+      <option value="" ${!student?.gender ? "selected" : ""}>— 선택 —</option>
       <option value="M" ${student?.gender === "M" ? "selected" : ""}>남</option>
       <option value="F" ${student?.gender === "F" ? "selected" : ""}>여</option>
     </select>
@@ -542,7 +544,7 @@ function openStudentModal(student = null) {
           ? ($("#f_plannedClassId")?.value || student?.plannedClassId || "")
           : classIdSelect.value;
       classIdSelect.disabled = false;
-      classIdSelect.innerHTML = options.map(c =>
+      classIdSelect.innerHTML = `<option value="">— 선택 —</option>` + options.map(c =>
         `<option value="${c.id}" ${c.id === preferId ? "selected" : ""}>${escapeHtml(c.name)}</option>`
       ).join("");
       plannedWrap.classList.add("hidden");
@@ -639,6 +641,11 @@ function openStudentModal(student = null) {
   }
 
   $("#saveBtn").onclick = async () => {
+    // 상태/반/성별은 기본값 없이 직접 선택해야 저장됨 (잘못된 기본값이 그대로 저장되는 실수 방지)
+    if (!$("#f_name").value.trim()) { alert("이름을 입력해주세요."); return; }
+    if (!$("#f_status").value) { alert("상태를 선택해주세요."); return; }
+    if (!$("#f_classId").value) { alert("반을 선택해주세요."); return; }
+    if (!$("#f_gender").value) { alert("성별을 선택해주세요."); return; }
     const guardians = $all(".guardian-row", $("#guardianRows")).map(row => ({
       relation: row.querySelector(".g_relation").value,
       name: row.querySelector(".g_name").value.trim(),
@@ -763,7 +770,7 @@ function openBulkImportModal(visibleClasses) {
         name, className, genderRaw, statusRaw, joinDateRaw, phone, school, birthday, address,
         g1relation, g1name, g1phone, g2relation, g2name, g2phone, note
       ] = parts;
-      const gender = (genderRaw === "여" || genderRaw === "F") ? "F" : "M";
+      const gender = (genderRaw === "여" || genderRaw === "F") ? "F" : ((genderRaw === "남" || genderRaw === "M") ? "M" : "");
       const status = CSV_STATUS_MAP[statusRaw] || "active";
       // 새친구는 반이름 칸의 값과 무관하게 항상 새친구반으로 등록하고, 반이름 칸에 적힌 학년은
       // "실제 학년(예정 반)"으로 보존한다(반이름 칸에 이미 "새친구"라고 적었다면 예정 반은 비워둠).
@@ -775,7 +782,7 @@ function openBulkImportModal(visibleClasses) {
       } else {
         classId = nameToClassId[className];
       }
-      if (!name || !classId) { fail++; failedLines.push(line); continue; }
+      if (!name || !classId || !gender) { fail++; failedLines.push(line + " (이름/반/성별 확인)"); continue; }
       // 등록일을 직접 지정하지 않았거나 형식이 이상하면(YYYY-MM-DD가 아니면) 오늘 날짜로 대체
       const joinDate = /^\d{4}-\d{2}-\d{2}$/.test(joinDateRaw || "") ? joinDateRaw : todayISO();
       // 보호자는 이름 또는 전화번호 중 하나라도 있으면 한 명으로 인정 (관계를 안 적었으면 순서대로 아버지/어머니로 기본 지정)

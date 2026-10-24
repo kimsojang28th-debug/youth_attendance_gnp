@@ -866,3 +866,7 @@ td.annual-this-week { background: rgba(35, 64, 95, 0.07); }
 .nw-dd-list{display:flex;flex-wrap:wrap;gap:.2rem .8rem;padding:.4rem .2rem}
 .nw-grp td{background:#eef2ff;font-weight:700;padding:.3rem .5rem}
 .nw-picked{background:#e7f5e9;font-weight:600}
+
+.login-sw{display:block;margin-top:4px;font-size:.82rem;white-space:nowrap;cursor:pointer}
+.inline-dd summary{font-size:.9rem}
+.saved-flash summary{background:#d3f9d8 !important;transition:background .3s}
