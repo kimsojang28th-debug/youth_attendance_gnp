@@ -240,12 +240,12 @@ export function openStudentProfileModal(student) {
   $("#cancelBtn").onclick = closeModal;
   $("#editFromProfileBtn").onclick = () => openStudentModal(student);
   // 이 학생이 속한 반의 연간출석부로 바로 이동. annual.js에 "다음에 열릴 때 이 반을 선택해달라"고
-  // 미리 요청해두고(requestAnnualClass), 실제 화면 전환은 상단 메뉴의 "연간출석부" 버튼을 그대로 클릭해서 처리함
+  // 미리 요청해두고(requestAnnualClass), 실제 화면 전환은 화면 주소(#annual)를 바꿔서 처리함
   // (app.js의 뷰 전환 로직을 그대로 재사용하기 위함 - 새로 만들지 않음).
   $("#viewAttendanceBtn").onclick = () => {
     requestAnnualClass(student.classId);
     closeModal();
-    document.querySelector('.nav-btn[data-view="annual"]')?.click();
+    location.hash = "annual"; // app.js의 hashchange 처리가 연간출석부 화면으로 전환해줌
   };
 }
 

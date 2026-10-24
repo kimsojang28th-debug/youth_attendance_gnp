@@ -95,6 +95,7 @@ export async function buildAttendanceDetail(date) {
 
     details.push({
       classId: c.id, className: c.name, roster, present,
+      checked: !!attDoc, // 이 주일의 출석체크가 저장된 적이 있는지(대시보드 "이번 주 할 일" 상태 표시용)
       regularRoster, regularPresent, newRoster, newPresent,
       students: studentRows
     });

@@ -5,6 +5,7 @@ import { buildAttendanceDetail } from "./report.js";
 import { $, escapeHtml, nearestSundayISO, friendlyFirestoreError } from "./utils.js";
 import { isAdmin, currentUser } from "./auth.js";
 import { goToAttendance } from "./app.js";
+import { db, doc, getDoc } from "./firebase-init.js";
 
 export async function initDashboardView() {
   const classes = await loadClasses();
@@ -19,6 +20,8 @@ export async function initDashboardView() {
   // 2026-08-23: 새친구는 더 이상 학년반 소속 + 상태값으로만 구분하지 않고, 별도의 새친구반(newcomer)에서
   // 관리하며 공식 재적 인원/출석 합계에는 포함하지 않는다(재적으로 전환되면 그때부터 포함됨).
   // 새친구반 자체의 인원/출석은 아래에서 별도로 계산해 참고용으로 보여준다.
+  await renderTodo(date, visibleRows);
+
   const regularRows = visibleRows.filter(r => r.classId !== "newcomer");
   const newcomerRow = visibleRows.find(r => r.classId === "newcomer");
   const rowsTotal = regularRows.reduce((acc, r) => ({ roster: acc.roster + r.roster, present: acc.present + r.present }), { roster: 0, present: 0 });
@@ -102,4 +105,48 @@ export async function initDashboardView() {
       goToAttendance(e.currentTarget.dataset.classId, date);
     };
   });
+}
+
+// "이번 주 할 일" - 매주 반복되는 순서(출석체크 → 예배정보 입력 → 주간보고서)를 큰 버튼으로 보여주고,
+// 이번 주 입력 상태를 배지로 표시해서 아직 안 한 일이 한눈에 보이게 함.
+async function renderTodo(date, visibleRows) {
+  let meta = {};
+  try {
+    const snap = await getDoc(doc(db, "weeklyMeta", date));
+    if (snap.exists()) meta = snap.data();
+  } catch (err) { console.warn("예배정보 상태 확인 실패", err); }
+
+  // 재적 인원이 0명인 반은 출석체크할 필요가 없으므로 제외
+  const targets = visibleRows.filter(r => r.roster > 0);
+  const checked = targets.filter(r => r.checked).length;
+  let attBadge;
+  if (!targets.length) attBadge = `<span class="badge badge-removed">대상 반 없음</span>`;
+  else if (checked === targets.length) attBadge = `<span class="badge badge-active">✔ 입력 완료 (${checked}/${targets.length}반)</span>`;
+  else if (checked === 0) attBadge = `<span class="badge badge-hold">미입력 (0/${targets.length}반)</span>`;
+  else attBadge = `<span class="badge badge-hold">입력 중 (${checked}/${targets.length}반)</span>`;
+
+  const offering = meta.offering || {};
+  const worshipDone = !!(meta.sermonTitle || meta.sermonText || meta.preacher ||
+    Object.values(offering).some(v => Number(v) > 0));
+  const worshipBadge = worshipDone
+    ? `<span class="badge badge-active">✔ 입력 완료</span>`
+    : `<span class="badge badge-hold">미입력</span>`;
+
+  $("#dashboardTodo").innerHTML = `
+    <div class="todo-head"><h3>이번 주 할 일</h3><span class="dim-note">${date} 주일 기준</span></div>
+    <div class="todo-grid">
+      <a href="#attendance" class="todo-card">
+        <span class="todo-top"><span class="todo-step">1</span><span class="todo-title">✅ 출석체크</span></span>
+        <span class="todo-desc">반별 출석을 체크하고 저장합니다.</span>${attBadge}
+      </a>
+      <a href="#worship" class="todo-card">
+        <span class="todo-top"><span class="todo-step">2</span><span class="todo-title">🎵 예배정보 입력</span></span>
+        <span class="todo-desc">설교·헌금·심방 내용을 입력합니다.</span>${worshipBadge}
+      </a>
+      <a href="#report" class="todo-card">
+        <span class="todo-top"><span class="todo-step">3</span><span class="todo-title">📝 주간보고서 보기</span></span>
+        <span class="todo-desc">입력한 결과를 확인하고 A4로 인쇄합니다.</span>
+      </a>
+    </div>
+  `;
 }

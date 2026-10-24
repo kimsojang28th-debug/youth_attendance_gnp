@@ -11,14 +11,17 @@
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png" />
 <link rel="manifest" href="manifest.webmanifest" />
-<meta name="theme-color" content="#1e3a5f" />
+<meta name="theme-color" content="#23405F" />
 
 <!-- iOS: 홈 화면에 추가 시 앱처럼(주소창 없이) 실행되도록 -->
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="재적관리" />
 
-<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.css" />
+<!-- 공실연 강연 신청 시스템과 같은 글꼴(Noto Sans KR)로 통일 -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" />
 <link rel="stylesheet" href="css/style.css" />
 <!-- Chart.js를 외부 CDN 대신 저장소에 직접 포함시켜서 로드합니다.
      (일부 네트워크/방화벽 환경에서 cdnjs 등 외부 CDN 접속이 막혀 "차트 라이브러리를
@@ -29,56 +32,58 @@
 
 <!-- ===== 로그인 화면 ===== -->
 <div id="loginScreen" class="login-screen">
-  <div class="login-box">
-    <h1>🙌 청소년부 재적관리</h1>
-    <p class="sub">교사/부장 계정으로 로그인해주세요.</p>
-    <form id="loginForm">
-      <label>이메일</label>
-      <input type="email" id="loginEmail" required placeholder="you@example.com" />
-      <label>비밀번호</label>
-      <input type="password" id="loginPassword" required placeholder="비밀번호" />
-      <button type="submit" class="btn btn-primary btn-block">로그인</button>
-    </form>
-    <p id="loginError" class="error-text"></p>
-    <details class="admin-hint">
-      <summary>처음 사용하시나요?</summary>
-      <p>관리자(부장님) 계정이 없다면 Firebase 콘솔 &gt; Authentication에서 먼저 계정을 만들고, Firestore의 <code>users</code> 컬렉션에 role을 <code>admin</code>으로 등록해주세요. 자세한 방법은 README.md를 참고하세요.</p>
-    </details>
+  <div class="login-wrap">
+    <img src="icons/icon-192.png" alt="" class="login-logo" width="84" height="84" />
+    <h1>청소년부 재적관리</h1>
+    <p class="login-tag">청소년부 출석·재적 관리</p>
+    <div class="login-box">
+      <h2 class="login-card-title">로그인</h2>
+      <p class="sub">교사/부장 계정으로 로그인해주세요.</p>
+      <form id="loginForm">
+        <label for="loginEmail">이메일</label>
+        <input type="email" id="loginEmail" required placeholder="you@example.com" />
+        <label for="loginPassword">비밀번호</label>
+        <input type="password" id="loginPassword" required placeholder="비밀번호" />
+        <button type="submit" class="btn btn-primary btn-block">로그인</button>
+      </form>
+      <p id="loginError" class="error-text"></p>
+      <details class="admin-hint">
+        <summary>처음 사용하시나요?</summary>
+        <p>관리자(부장님) 계정이 없다면 Firebase 콘솔 &gt; Authentication에서 먼저 계정을 만들고, Firestore의 <code>users</code> 컬렉션에 role을 <code>admin</code>으로 등록해주세요. 자세한 방법은 README.md를 참고하세요.</p>
+      </details>
+    </div>
   </div>
 </div>
 
 <!-- ===== 메인 앱 ===== -->
 <div id="app" class="app hidden">
   <header class="topbar">
-    <div class="topbar-top">
-      <div class="topbar-title">🙌 청소년부 재적관리</div>
+    <div class="topbar-inner">
+      <!-- 로고/타이틀: 어느 화면에서든 누르면 대시보드(메인)로 이동 -->
+      <a href="#dashboard" class="brand" id="brandLink" aria-label="청소년부 재적관리 - 메인 화면으로">
+        <img src="icons/icon-192.png" alt="" class="brand-icon" width="42" height="42" />
+        <span class="brand-text">
+          <span class="brand-title">청소년부 재적관리</span>
+          <span class="brand-sub">청소년부 출석·재적 관리</span>
+        </span>
+      </a>
+      <!-- 메뉴는 js/app.js의 MENU 설정에서 자동으로 만들어집니다 (PC: 상단 드롭다운 / 모바일: 하단 탭바) -->
+      <nav id="mainNav" class="main-nav" aria-label="주 메뉴"></nav>
       <div class="topbar-user">
         <span id="userLabel"></span>
-        <button id="logoutBtn" class="btn btn-ghost">로그아웃</button>
+        <button id="logoutBtn" class="btn btn-ghost btn-sm">로그아웃</button>
       </div>
     </div>
-    <nav id="mainNav" class="main-nav">
-      <button data-view="dashboard" class="nav-btn active">🏠 대시보드</button>
-      <button data-view="report" class="nav-btn">📝 주간보고서</button>
-      <button data-view="annual" class="nav-btn">📅 연간출석부</button>
-      <button data-view="attendance" class="nav-btn">✅ 출석체크</button>
-      <button data-view="worship" class="nav-btn">🎵 예배정보입력</button>
-      <button data-view="students" class="nav-btn">👥 재적부</button>
-      <button data-view="teachers" class="nav-btn">🧑‍🏫 교사현황</button>
-      <button data-view="birthdays" class="nav-btn">🎂 월별 생일자</button>
-      <button data-view="yearlyplan" class="nav-btn">🗓️ 연간계획</button>
-      <button data-view="classes" class="nav-btn">🗂️ 반 관리</button>
-      <button data-view="history" class="nav-btn">🔄 재적변동이력</button>
-      <button data-view="stats" class="nav-btn">📊 통계</button>
-      <button data-view="import" class="nav-btn">📥 출석 가져오기</button>
-    </nav>
   </header>
 
   <main class="content">
 
+    <div id="breadcrumb" class="breadcrumb" aria-label="현재 위치"></div>
+
     <!-- 대시보드 -->
     <section id="view-dashboard" class="view">
       <h2>대시보드</h2>
+      <div id="dashboardTodo"></div>
       <div class="card-grid" id="dashboardCards"></div>
       <div class="panel">
         <h3>이번 주 반별 출석 현황</h3>
@@ -220,6 +225,16 @@
     <section id="view-import" class="view hidden"></section>
 
   </main>
+
+  <!-- 모바일 하단 탭바 + 그룹 하위 메뉴 시트 -->
+  <nav id="tabbar" class="tabbar" aria-label="하단 메뉴"></nav>
+  <div id="groupSheet" class="sheet hidden">
+    <div class="sheet-backdrop" id="sheetBackdrop"></div>
+    <div class="sheet-panel" role="dialog" aria-modal="true">
+      <div class="sheet-title" id="sheetTitle"></div>
+      <div class="sheet-items" id="sheetItems"></div>
+    </div>
+  </div>
 </div>
 
 <!-- 공용 모달 -->

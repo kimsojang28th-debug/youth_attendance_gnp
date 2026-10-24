@@ -31,6 +31,12 @@ export async function initAttendanceView() {
   const visible = isAdmin() ? classes : classes.filter(c => currentUser.classIds.includes(c.id));
   const select = $("#attendanceClassSelect");
   select.innerHTML = visible.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
+  // 마지막으로 출석체크한 반을 기억해서 다음에 열 때 자동 선택 (담당 교사는 매주 같은 반을 고르기 때문)
+  // 날짜는 기억하지 않음 - 기본값(가장 가까운 주일)이 이미 "이번 주"이고, 기억하면 지난 주가 열릴 위험이 있음
+  try {
+    const last = localStorage.getItem("youth:lastAttendanceClass");
+    if (last && select.querySelector(`option[value="${last}"]`)) select.value = last;
+  } catch (e) { /* 저장소를 못 쓰는 환경이면 무시 */ }
 
   // 연도를 먼저 고르고 그 연도의 주일만 보이도록 함 (기본값: 올해)
   const thisYear = new Date().getFullYear();
@@ -57,6 +63,7 @@ async function renderAttendanceTable() {
   const classId = $("#attendanceClassSelect").value;
   const date = $("#attendanceDate").value;
   if (!classId || !date) return;
+  try { localStorage.setItem("youth:lastAttendanceClass", classId); } catch (e) { /* 무시 */ }
 
   // "제적"/"졸업" 상태만 출석체크 명단에서 제외 (재적/새친구/보류 학생은 모두 출석체크 대상에 포함)
   // 2026-08-23(5차): "졸업" 상태 추가 — 졸업한 학생은 청년부로 넘어간 것이므로 제적 학생과 마찬가지로
