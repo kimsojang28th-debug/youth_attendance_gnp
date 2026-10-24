@@ -1,6 +1,6 @@
 import { db, collection, getDocs, query, where } from "./firebase-init.js";
 import { loadClasses, getClassesCache } from "./classes.js";
-import { rosterForYear, getLiveYear, listArchivedYears } from "./terms.js";
+import { rosterForYear, getLiveYear, listArchivedYears, teacherNamesOfClass } from "./terms.js";
 import { loadStudents, getStudentsCache, openStudentProfileModal, studentThumbHtml } from "./students.js";
 import {
   $, escapeHtml, getSundaysOfYear, fmtMonthDay, sortByName, friendlyFirestoreError,
@@ -85,9 +85,12 @@ async function renderAnnualTable() {
     return;
   }
   const docsByClass = {}; // docsByClass[classId][date] = { records, notes }
+  const recByStudent = {}; // recByStudent[date][studentId] = { val, note } — 다른 반에서 입력된 기록(반 이동 전 기록)도 학생 기준으로 찾기 위함
   snap.docs.forEach(d => {
     const x = d.data();
     (docsByClass[x.classId] ||= {})[x.date] = { records: x.records || {}, notes: x.notes || {} };
+    const byDate = (recByStudent[x.date] ||= {});
+    Object.entries(x.records || {}).forEach(([sid, v]) => { byDate[sid] = { val: v === "O" ? "O" : "X", note: (x.notes || {})[sid] || "" }; });
   });
 
   // 보여줄 주일: 기본은 그 해의 모든 주일, "기록 없는 주일 숨기기"를 켜면 출석 기록이 하나라도 있는 주일만
@@ -110,13 +113,17 @@ async function renderAnnualTable() {
       let present = 0, eligible = 0;
       const cells = sundays.map(date => {
         const d = docsByClass[c.id]?.[date];
+        // 학생 기준으로 기록을 찾는다: 같은 반 출석표에 값이 있으면 그것, 없으면 같은 날 다른 반(이동 전 반)에서 입력된 기록.
+        const own = d && s.id in d.records ? { val: d.records[s.id] === "O" ? "O" : "X", note: d.notes[s.id] || "" } : null;
+        const other = recByStudent[date]?.[s.id] || null;
+        const rec = own || other;
         // 등록일(joinDate) 이전 주일, 또는 그 주 출석 기록 자체가 없는 주일은 "-"(해당없음).
-        // 기록은 있는데 이 학생 값만 없으면 결석(X)으로 간주.
-        if (!d || (s.joinDate && date < s.joinDate)) return { val: null, note: "" };
-        const val = d.records[s.id] === "O" ? "O" : "X";
+        // 같은 반 기록은 있는데 이 학생 값만 없으면(다른 반 기록도 없으면) 결석(X)으로 간주.
+        if ((!d && !rec) || (s.joinDate && date < s.joinDate)) return { val: null, note: "" };
+        const val = rec ? rec.val : "X";
         eligible++;
         if (val === "O") present++;
-        return { val, note: d.notes[s.id] || "" };
+        return { val, note: rec ? rec.note : "" };
       });
       return { s, cells, present, eligible };
     });
@@ -152,7 +159,7 @@ async function renderAnnualTable() {
     if (last && last.month === m) last.count++; else months.push({ month: m, count: 1 });
   });
 
-  const teacherLine = (c) => (c.teacherNames && c.teacherNames.length) ? `담당 ${escapeHtml(c.teacherNames.join(", "))}` : "담당 미배정";
+  const teacherLine = (c) => { const n = teacherNamesOfClass(roster, c); return n.length ? `담당 ${escapeHtml(n.join(", "))}` : "담당 미배정"; };
 
   const bodyHtml = sections.map(sec => {
     const { cls } = sec;

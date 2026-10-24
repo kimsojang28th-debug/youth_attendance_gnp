@@ -47,7 +47,7 @@ export async function initStudentsView() {
       list.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
     classFilter.value = "all";
   };
-  const toolbarButtons = ["addStudentBtn", "bulkImportBtn", "studentsBulkGraduateBtn"];
+  const toolbarButtons = ["addStudentBtn", "bulkImportBtn", "studentsBulkMoveBtn"];
   const syncToolbarButtons = () => toolbarButtons.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.toggle("hidden", !!_viewYear || editableClasses.length === 0);
@@ -80,47 +80,72 @@ export async function initStudentsView() {
   $("#bulkImportBtn").onclick = () => openBulkImportModal(editableClasses);
   // 담당반이 없는 교사는 학생을 추가/일괄등록/졸업처리 할 수 없으므로 버튼을 숨김 (지난 학년도 조회 중에도 숨김)
   syncToolbarButtons();
-  $("#studentsBulkGraduateBtn").onclick = handleBulkGraduate;
+  $("#studentsBulkMoveBtn").onclick = handleBulkMove;
 
   await loadStudents(true);
   renderStudentsTable();
 }
 
-// 2026-08-23(5차): 연말에 고3 학생들을 한 번에 "졸업" 상태로 바꾸는 일괄 처리 기능.
-// 개별 학생 수정 화면에서 하나씩 상태를 바꾸는 것과 결과는 같지만(상태 변경 + 재적변동이력 기록),
-// 여러 명을 한 번에 처리할 수 있게 해줌.
-async function handleBulkGraduate() {
+// 선택한 학생들을 다른 반으로 한 번에 이동 (연중 반 통합/조정용).
+// 연말 졸업·진급·새 편성은 "새 학년도 편성" 화면에서 처리하고, 연중 개별 졸업은 학생 정보 수정에서 상태를 바꾼다.
+async function handleBulkMove() {
   const wrap = $("#studentsTableWrap");
   const checkedIds = $all(".studentRowCheck:checked", wrap).map(cb => cb.closest("tr").dataset.id);
   if (!checkedIds.length) return;
-  const targets = _studentsCache.filter(s => checkedIds.includes(s.id) && s.status !== "graduated" && canEditClass(s.classId));
+  const targets = _studentsCache.filter(s => checkedIds.includes(s.id) && canEditClass(s.classId));
   if (!targets.length) {
-    alert("선택한 학생은 이미 모두 졸업 처리되어 있습니다.");
+    alert("선택한 학생 중 이동할 수 있는 학생이 없습니다. (내 담당반 학생만 이동할 수 있습니다)");
     return;
   }
-  if (!confirm(
-    `선택한 ${targets.length}명을 "졸업" 상태로 일괄 변경할까요?\n` +
-    `(졸업 처리되면 출석체크·주간보고서·연간출석부·생일자·통계 등 청소년부 현재 활동 화면에서는 ` +
-    `자동으로 빠지고, 재적부 목록에서는 "졸업" 상태로 계속 조회할 수 있습니다.)`
-  )) return;
-
-  const today = todayISO();
-  let success = 0, fail = 0;
-  for (const s of targets) {
-    try {
-      await updateDoc(doc(db, "students", s.id), { status: "graduated" });
-      await addHistoryRecord({
-        studentId: s.id, studentName: s.name, classId: s.classId,
-        type: "graduated", date: today, note: "일괄 졸업처리"
-      });
-      success++;
-    } catch (err) {
-      fail++;
+  const classes = getClassesCache();
+  openModal(`
+    <h3>선택한 학생 반 이동</h3>
+    <p>${targets.length}명: ${escapeHtml(targets.slice(0, 8).map(s => s.name).join(", "))}${targets.length > 8 ? " 외" : ""}</p>
+    <label>이동할 반</label>
+    <select id="bulkMoveDest">
+      <option value="">— 반 선택 —</option>
+      ${classes.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")}
+    </select>
+    <p class="dim-note">이동 후에도 이 학생들의 지난 출석 기록은 연간출석부에서 이어서 보입니다. 이동 내역은 재적변동이력에 남습니다.</p>
+    <div class="modal-actions">
+      <button id="bulkMoveCancel" class="btn">취소</button>
+      <button id="bulkMoveGo" class="btn btn-primary">이동</button>
+    </div>
+  `);
+  $("#bulkMoveCancel").onclick = closeModal;
+  $("#bulkMoveGo").onclick = async () => {
+    const dest = $("#bulkMoveDest").value;
+    if (!dest) { alert("이동할 반을 선택해주세요."); return; }
+    const destName = (classes.find(c => c.id === dest) || {}).name || dest;
+    const moving = targets.filter(s => s.classId !== dest);
+    if (!moving.length) { closeModal(); alert("선택한 학생이 이미 그 반에 있습니다."); return; }
+    if (!confirm(`${moving.length}명을 "${destName}" 반으로 이동할까요?`)) return;
+    $("#bulkMoveGo").disabled = true;
+    const today = todayISO();
+    let success = 0, fail = 0;
+    for (const s of moving) {
+      try {
+        const upd = { classId: dest, plannedClassId: "" };
+        const becomesActive = s.status === "new" && dest !== "newcomer";
+        if (becomesActive) upd.status = "active";
+        await updateDoc(doc(db, "students", s.id), upd);
+        const from = (classes.find(c => c.id === s.classId) || {}).name || s.classId;
+        await addHistoryRecord({
+          studentId: s.id, studentName: s.name, classId: dest,
+          type: becomesActive ? "active" : (s.status || "active"), date: today,
+          note: `반 이동: ${from} → ${destName}${becomesActive ? " (새친구 → 재적)" : ""}`
+        });
+        success++;
+      } catch (err) {
+        console.error(err);
+        fail++;
+      }
     }
-  }
-  await loadStudents(true);
-  renderStudentsTable();
-  alert(`${success}명 졸업 처리 완료${fail ? `, ${fail}건 실패` : ""}`);
+    closeModal();
+    await loadStudents(true);
+    renderStudentsTable();
+    alert(`${success}명 이동 완료${fail ? `, ${fail}건 실패` : ""}`);
+  };
 }
 
 
@@ -188,7 +213,7 @@ async function renderStudentsTable() {
 
   // 2026-08-23(5차): 연말에 고3 학생 여러 명을 한 번에 "졸업" 상태로 바꿀 수 있는 일괄 처리용
   // 체크박스. 재적변동이력의 "선택 삭제" 체크박스와 동일한 방식(전체선택 + 행별 체크 + 버튼 활성화).
-  const bulkBtn = $("#studentsBulkGraduateBtn");
+  const bulkBtn = $("#studentsBulkMoveBtn");
   const updateBulkBtnState = () => {
     if (bulkBtn) bulkBtn.disabled = !$all(".studentRowCheck").some(cb => cb.checked);
   };

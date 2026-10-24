@@ -8,7 +8,7 @@ import { goToAttendance } from "./app.js";
 import { db, doc, getDoc } from "./firebase-init.js";
 import { loadTeachers } from "./teachers.js";
 import { initDashboardCalendar } from "./calendar.js";
-import { rosterForYear, getTransitionNotice } from "./terms.js";
+import { rosterForYear, getTransitionNotice, teacherNamesOfClass } from "./terms.js";
 
 export async function initDashboardView() {
   const classes = await loadClasses();
@@ -83,7 +83,7 @@ export async function initDashboardView() {
   // 새친구를 별도 새친구반으로 완전히 분리한 뒤로는 이 열에 표시할 내용이 없어져서, 대신 각 반의
   // 담당 선생님 이름을 보여주도록 변경함.
   const teacherNamesByClassId = Object.fromEntries(
-    visible.map(c => [c.id, (c.teacherNames && c.teacherNames.length) ? c.teacherNames.join(", ") : "미배정"])
+    visible.map(c => { const n = teacherNamesOfClass(roster, c); return [c.id, n.length ? n.join(", ") : "미배정"]; })
   );
 
   const weekWrap = $("#dashboardWeekTable");

@@ -2,7 +2,7 @@ import { db, doc, getDoc } from "./firebase-init.js";
 import { loadClasses, getClassesCache, getClassById } from "./classes.js";
 import { loadStudents, getStudentsCache, openStudentProfileModal, studentThumbHtml } from "./students.js";
 import { getAttendanceDoc } from "./attendance.js";
-import { rosterForYear } from "./terms.js";
+import { rosterForYear, teacherNamesOfClass } from "./terms.js";
 import { currentUser } from "./auth.js";
 import {
   $, escapeHtml, nearestSundayISO, sortByName, fmtMonthDay,
@@ -42,7 +42,8 @@ async function getWeeklyMeta(date) {
 // 반별 학생 명단(가나다순) + 그 주 출결(O/X) + 출결사유/특이사항을 함께 담아 반환
 export async function buildAttendanceDetail(date) {
   // 날짜가 속한 학년도의 반/학생 명부로 계산(지난 해 보고서는 그해 편성 그대로 보임)
-  const { classes, students } = await rosterForYear(Number(String(date).slice(0, 4)));
+  const _roster = await rosterForYear(Number(String(date).slice(0, 4)));
+  const { classes, students } = _roster;
   const details = [];
   let totalRoster = 0, totalPresent = 0;
   let totalRegularRoster = 0, totalRegularPresent = 0, totalNewRoster = 0, totalNewPresent = 0;
@@ -95,7 +96,7 @@ export async function buildAttendanceDetail(date) {
     totalNewPresent += newPresent;
 
     details.push({
-      classId: c.id, className: c.name, teacherNames: c.teacherNames || [], roster, present,
+      classId: c.id, className: c.name, teacherNames: teacherNamesOfClass(_roster, c), roster, present,
       checked: !!attDoc, // 이 주일의 출석체크가 저장된 적이 있는지(대시보드 "이번 주 할 일" 상태 표시용)
       regularRoster, regularPresent, newRoster, newPresent,
       students: studentRows

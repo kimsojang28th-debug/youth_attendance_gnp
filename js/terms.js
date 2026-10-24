@@ -42,6 +42,15 @@ export async function isPastDate(date) {
   return !!y && y < await getLiveYear();
 }
 
+// 반의 담당 교사 이름: 교사현황의 담당반(classIds)이 기준. 아직 담당반이 입력되지 않은 옛 데이터는 반에 직접 적어둔 이름으로 대신한다.
+export function teacherNamesOfClass(roster, cls) {
+  const list = (roster.teachers || [])
+    .filter(t => (roster.live ? !t.retired : true) && (t.classIds || []).includes(cls.id))
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+  const names = list.map(t => t.name).filter(Boolean);
+  return names.length ? names : (cls.teacherNames || []);
+}
+
 export function invalidateTerms() {
   _settings = null;
   _archivedYears = null;

@@ -3,6 +3,9 @@ import {
 } from "./firebase-init.js";
 import { $, escapeHtml, openModal, closeModal } from "./utils.js";
 import { isAdmin } from "./auth.js";
+import { rosterForYear, listArchivedYears, getLiveYear, teacherNamesOfClass } from "./terms.js";
+import { loadStudents } from "./students.js";
+import { loadTeachers } from "./teachers.js";
 
 let _classesCache = null;
 
@@ -70,38 +73,60 @@ export async function seedDefaultClassesIfEmpty() {
 // 학생 재적부에서 학생을 추가/삭제하듯, 반도 직접 추가/삭제할 수 있는 화면.
 // 반 추가/수정/삭제는 관리자(부장)만 가능 (firestore.rules의 classes 컬렉션 규칙과 동일하게 맞춤).
 
+let _viewYear = null; // null = 현재 학년도, 숫자 = 지난 학년도(읽기 전용)
+
 export async function initClassesView() {
-  await loadClasses(true);
-  renderClassesView();
+  _viewYear = null;
+  await Promise.all([loadClasses(true), loadStudents(true), loadTeachers(true)]);
+  await renderClassesView();
 }
 
-function renderClassesView() {
-  const classes = getClassesCache();
+async function renderClassesView() {
   const admin = isAdmin();
   const wrap = $("#view-classes");
+  const past = !!_viewYear;
+  const liveYear = await getLiveYear();
+  const roster = await rosterForYear(_viewYear || liveYear);
+  const classes = roster.classes;
+  const students = roster.students.filter(s => ["active", "new", "hold"].includes(s.status));
+  const archived = await listArchivedYears();
+  const yearSel = archived.length
+    ? `<select id="classesYearSelect"><option value="">현재 (${liveYear}학년도)</option>${archived.map(y => `<option value="${y}" ${_viewYear === y ? "selected" : ""}>${y}학년도 (보관)</option>`).join("")}</select>`
+    : "";
 
   wrap.innerHTML = `
     <h2>반 관리</h2>
-    ${admin
-      ? `<div class="toolbar"><button id="addClassBtn" class="btn btn-primary">+ 반 추가</button></div>`
+    <div class="toolbar">
+      ${yearSel}
+      ${admin && !past ? `<button id="addClassBtn" class="btn btn-primary">+ 반 추가</button>` : ""}
+    </div>
+    ${past ? `<p class="dim-note" style="margin-bottom:12px;">${_viewYear}학년도에 편성되었던 반입니다. 지난 학년도는 조회만 가능합니다.</p>`
+      : admin ? `<p class="dim-note" style="margin-bottom:12px;">담당 선생님은 <b>교사현황</b>의 담당반 설정이 자동으로 표시됩니다. 학생의 반 이동은 재적부에서 합니다.</p>`
       : `<p class="dim-note" style="margin-bottom:12px;">반 추가/수정/삭제는 관리자(부장)만 할 수 있습니다.</p>`}
     <div class="table-scroll">
     <table>
-      <thead><tr><th>반 이름</th><th>담당 선생님</th>${admin ? "<th></th>" : ""}</tr></thead>
+      <thead><tr><th>반 이름</th><th>담당 선생님</th><th>학생</th>${admin && !past ? "<th></th>" : ""}</tr></thead>
       <tbody>
-        ${classes.length ? classes.map(c => `
+        ${classes.length ? classes.map(c => {
+          const names = teacherNamesOfClass(roster, c);
+          const cnt = students.filter(s => s.classId === c.id).length;
+          return `
           <tr data-id="${c.id}">
             <td>${escapeHtml(c.name)}</td>
-            <td>${(c.teacherNames && c.teacherNames.length) ? escapeHtml(c.teacherNames.join(", ")) : `<span class="dim-note">미배정</span>`}</td>
-            ${admin ? `<td><button class="btn btn-sm editClassBtn">수정</button></td>` : ""}
-          </tr>
-        `).join("") : `<tr><td colspan="${admin ? 3 : 2}"><p class="list empty">등록된 반이 없습니다.</p></td></tr>`}
+            <td>${names.length ? escapeHtml(names.join(", ")) : `<span class="dim-note">미배정</span>`}</td>
+            <td>${cnt}명</td>
+            ${admin && !past ? `<td><button class="btn btn-sm editClassBtn">수정</button></td>` : ""}
+          </tr>`;
+        }).join("") : `<tr><td colspan="4"><p class="list empty">등록된 반이 없습니다.</p></td></tr>`}
       </tbody>
     </table>
     </div>
   `;
 
-  if (!admin) return;
+  const ys = $("#classesYearSelect");
+  if (ys) ys.onchange = async () => { _viewYear = ys.value ? Number(ys.value) : null; await renderClassesView(); };
+
+  if (!admin || past) return;
 
   $("#addClassBtn").onclick = () => openClassModal();
   wrap.querySelectorAll(".editClassBtn").forEach(btn => {
@@ -120,8 +145,7 @@ function openClassModal(cls = null) {
     <h3>${isEdit ? "반 정보 수정" : "반 추가"}</h3>
     <label>반 이름</label>
     <input id="f_className" value="${escapeHtml(cls?.name || "")}" placeholder="예: 중1" />
-    <label>담당 선생님</label>
-    <input id="f_teacherNames" value="${escapeHtml((cls?.teacherNames || []).join(", "))}" placeholder="예: 김선생, 이선생 (여러 명은 쉼표로 구분)" />
+    <p class="dim-note">담당 선생님은 교사현황의 담당반 설정에서 정합니다.</p>
     <div class="modal-actions">
       ${isEdit ? `<button id="deleteClassBtn" class="btn btn-danger">삭제</button>` : ""}
       <button id="cancelBtn" class="btn">취소</button>
@@ -156,14 +180,13 @@ function openClassModal(cls = null) {
   $("#saveClassBtn").onclick = async () => {
     const name = $("#f_className").value.trim();
     if (!name) { $("#classModalMsg").textContent = "반 이름을 입력해주세요."; return; }
-    const teacherNames = $("#f_teacherNames").value.split(",").map(s => s.trim()).filter(Boolean);
 
     try {
       if (isEdit) {
-        await updateDoc(doc(db, "classes", cls.id), { name, teacherNames });
+        await updateDoc(doc(db, "classes", cls.id), { name });
       } else {
         const maxOrder = getClassesCache().reduce((m, c) => Math.max(m, c.order || 0), 0);
-        await addDoc(collection(db, "classes"), { name, teacherNames, grade: name, order: maxOrder + 1 });
+        await addDoc(collection(db, "classes"), { name, teacherNames: [], grade: name, order: maxOrder + 1 });
       }
     } catch (err) {
       $("#classModalMsg").textContent = `저장 중 오류가 발생했습니다: ${err.message || err}`;
