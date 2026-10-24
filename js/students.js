@@ -118,31 +118,36 @@ async function renderStudentsTable() {
     return;
   }
 
+  // 이름(사진/체크박스/성별 표시)을 왼쪽에 고정하고, 간격을 줄여 스크롤을 최소화한 표.
+  // 새친구반 학생의 예정 반은 반 칸이 아니라 이름 아래에 작게 표시한다(반 열이 넓어지는 것을 방지).
   wrap.innerHTML = `
     <div class="table-scroll">
-    <table>
+    <table class="students-table">
       <thead><tr>
-        <th><input type="checkbox" id="studentsSelectAll" /></th>
-        <th>이름</th><th>반</th><th>성별</th><th>상태</th><th>연락처</th><th>학교</th><th></th>
+        <th class="st-name-col"><span class="st-nm"><input type="checkbox" id="studentsSelectAll" /><span>이름</span></span></th>
+        <th>반</th><th>상태</th><th>연락처</th><th>학교</th><th></th>
       </tr></thead>
       <tbody>
-        ${list.map(s => `
+        ${list.map(s => {
+          const planned = s.classId === "newcomer" && s.plannedClassId ? (classMap[s.plannedClassId] || "") : "";
+          return `
           <tr data-id="${s.id}">
-            <td>${canEditClass(s.classId) ? `<input type="checkbox" class="studentRowCheck" />` : ""}</td>
-            <td>
-              <span class="student-name-cell">
+            <td class="st-name-col">
+              <span class="st-nm">
+                ${canEditClass(s.classId) ? `<input type="checkbox" class="studentRowCheck" />` : `<span class="st-chk-slot"></span>`}
                 ${studentThumbHtml(s)}
                 <a href="#" class="student-name-link">${escapeHtml(s.name)}</a>
+                <span class="st-gender ${s.gender === "F" ? "st-gender-f" : "st-gender-m"}">${s.gender === "F" ? "여" : "남"}</span>
               </span>
+              ${planned ? `<span class="st-planned">→ ${escapeHtml(planned)} 예정</span>` : ""}
             </td>
-            <td>${escapeHtml(classMap[s.classId] || s.classId)}${s.classId === "newcomer" && s.plannedClassId ? ` <span class="dim-note" style="font-size:11px;">(예정:${escapeHtml(classMap[s.plannedClassId] || "")})</span>` : ""}</td>
-            <td>${s.gender === "F" ? "여" : "남"}</td>
+            <td>${escapeHtml(classMap[s.classId] || s.classId)}</td>
             <td><span class="badge badge-${s.status}">${STUDENT_STATUS_LABEL[s.status] || s.status}</span></td>
             <td>${escapeHtml(s.phone || "")}</td>
             <td>${escapeHtml(s.school || "")}</td>
             <td>${canEditClass(s.classId) ? `<button class="btn btn-sm editStudentBtn">수정</button>` : ""}</td>
-          </tr>
-        `).join("")}
+          </tr>`;
+        }).join("")}
       </tbody>
     </table>
     </div>

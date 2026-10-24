@@ -817,3 +817,21 @@ td.annual-this-week { background: rgba(35, 64, 95, 0.07); }
   background: #fff4e0; border: 1px solid #f0cf94; border-radius: 12px; color: #7a4b00; font-size: 14px; text-decoration: none;
 }
 .todo-alert span { color: var(--primary); font-weight: 700; }
+
+/* ===== 재적부 표: 이름 고정 + 간격 압축 ===== */
+.students-table { font-size: 13px; }
+.students-table th, .students-table td { padding: 5px 8px; }
+.students-table .st-name-col {
+  position: sticky; left: 0; z-index: 1; background: var(--card-bg, #fffdf8); box-shadow: 1px 0 0 var(--border);
+}
+.students-table th.st-name-col { z-index: 3; background: #faf6ec; }
+.students-table .st-nm { display: flex; align-items: center; gap: 6px; }
+.students-table .st-nm input[type="checkbox"], .students-table .st-chk-slot { width: 16px; height: 16px; margin: 0; flex: 0 0 16px; }
+.students-table .student-thumb { width: 24px; height: 24px; font-size: 12px; }
+.students-table .st-gender { font-size: 11px; font-weight: 600; padding: 0 5px; border-radius: 8px; line-height: 17px; }
+.students-table .st-gender-m { color: #2f6db0; background: #e7f0fa; }
+.students-table .st-gender-f { color: #c0457a; background: #fbe9f1; }
+.students-table .st-planned { display: block; font-size: 11px; color: var(--text-muted); margin: 1px 0 0 52px; }
+.students-table .btn-sm { padding: 2px 9px; font-size: 12px; }
+.students-table tbody tr:hover td { background: #fbf7ec; }
+.students-table tbody tr:hover td.st-name-col { background: #fbf7ec; }
